@@ -6,6 +6,8 @@
     "pg-duckdb.svg": "https://raw.githubusercontent.com/duckdb/pg_duckdb/main/logo-light.svg",
     "pg-durable.svg": "https://raw.githubusercontent.com/microsoft/pg_durable/main/docs/website/lockup_arrow_dark.svg",
     "citus.svg": "https://www.citusdata.com/ (inline header SVG; duplicate HTML alt attributes removed for valid standalone SVG)",
-    "pg-repack.png": "https://avatars.githubusercontent.com/u/2398964?v=4&s=240"
+    "pg-repack.png": "https://avatars.githubusercontent.com/u/2398964?v=4&s=240",
+    "supabase.svg": "https://raw.githubusercontent.com/supabase/supabase/master/apps/www/public/brand-assets/supabase-logo-green-black-transparent.svg",
+    "timescale.svg": "https://assets.timescale.com/docs/images/timescale-logo-light-mode.svg"
   }
 }
