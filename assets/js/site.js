@@ -2,9 +2,24 @@ const root = document.documentElement;
 const media = matchMedia('(prefers-color-scheme: dark)');
 let preference = 'system';
 try { preference = localStorage.getItem('cnpg-mode') || 'system'; } catch {}
-function applyMode() { root.dataset.mode = preference === 'system' ? (media.matches ? 'dark' : 'light') : preference; document.querySelector('.mode-toggle')?.setAttribute('aria-label', `Current theme: ${root.dataset.mode}. Switch to ${root.dataset.mode === 'dark' ? 'light' : 'dark'} mode`); }
+if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+const themeOptions = document.querySelectorAll('input[name="color-theme"]');
+function applyMode() {
+ root.dataset.mode = preference === 'system' ? (media.matches ? 'dark' : 'light') : preference;
+ themeOptions.forEach(option => { option.checked = option.value === preference; });
+}
 applyMode(); media.addEventListener('change', applyMode);
-document.querySelector('.mode-toggle')?.addEventListener('click', () => { preference = root.dataset.mode === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('cnpg-mode', preference); } catch {} applyMode(); });
+themeOptions.forEach(option => option.addEventListener('change', () => {
+ if (!option.checked) return;
+ preference = option.value;
+ try { localStorage.setItem('cnpg-mode', preference); } catch {}
+ applyMode();
+}));
+window.addEventListener('storage', event => {
+ if (event.key !== 'cnpg-mode' && event.key !== null) return;
+ preference = ['light', 'dark'].includes(event.newValue) ? event.newValue : 'system';
+ applyMode();
+});
 const menu = document.getElementById('menu-toggle');
 menu?.addEventListener('click', () => { const nav = document.getElementById('mobile-nav'); nav.hidden = !nav.hidden; menu.setAttribute('aria-expanded', String(!nav.hidden)); });
 async function copyText(text, button, code) {

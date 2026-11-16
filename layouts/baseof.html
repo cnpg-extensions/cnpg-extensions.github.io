@@ -5,7 +5,7 @@
 <title>{{ if .IsHome }}CNPG Extensions · Complete and secure Postgres{{ else }}{{ .Title }} · CNPG Extensions{{ end }}</title>
 <meta name="description" content="{{ .Description | default `CloudNativePG with over 100 extensions, clear licensing, deep vulnerability tracking, and rapid package updates.` }}">
 <link rel="canonical" href="{{ .Permalink }}">
-<script>(()=>{let m='system';try{m=localStorage.getItem('cnpg-mode')||m}catch{};document.documentElement.dataset.mode=m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light'})()</script>
+<script>(()=>{let m='system';try{m=localStorage.getItem('cnpg-mode')||m}catch{};if(!['system','light','dark'].includes(m))m='system';document.documentElement.dataset.mode=m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light'})()</script>
 <link rel="stylesheet" href="{{ `assets/fonts/fonts.css` | relURL }}">
 {{ $css := slice (resources.Get "css/prototype.css") (resources.Get "css/site.css") | resources.Concat "css/site.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
@@ -16,7 +16,7 @@
 <header class="site-header"><div class="nav-inner">
 <a class="brand" href="{{ `` | relURL }}" aria-label="CNPG Extensions home"><img src="{{ `assets/cnpg-extensions.png` | relURL }}" alt="CNPG Extensions" width="2048" height="365"></a>
 <nav class="desktop-nav" aria-label="Main navigation">{{ partial "navigation.html" . }}</nav>
-<div class="nav-tools"><button class="mode-toggle" type="button" aria-label="Switch color theme" title="Switch color theme">◐</button><button class="mobile-menu" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav">Menu <span aria-hidden="true">☰</span></button></div>
+<div class="nav-tools">{{ partial "theme-switcher.html" . }}<button class="mobile-menu" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Toggle navigation menu"><span class="menu-label">Menu</span> <span aria-hidden="true">☰</span></button></div>
 </div><nav id="mobile-nav" aria-label="Mobile navigation" hidden>{{ partial "navigation.html" . }}</nav></header>
 <main id="main">{{ block "main" . }}{{ end }}</main>
 <footer class="wrap site-footer"><span>Open source. Built for CloudNativePG.</span><span><a href="{{ `security/` | relURL }}">Security &amp; transparency</a> · <a href="https://github.com/cnpg-extensions">GitHub ↗</a></span></footer>
