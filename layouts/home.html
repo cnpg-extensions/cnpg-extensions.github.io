@@ -27,7 +27,7 @@
             <span class="sr-only" id="copy-status" role="status" aria-live="polite"></span>
           </section>
           <section class="setup-step" aria-labelledby="schedule-title">
-            <div class="setup-heading"><span class="setup-number">02</span><div><h2 id="schedule-title">Schedule your updates</h2><p>Once alerts are working, refresh the catalog at the start of your maintenance window.</p><p>Databases and extensions will be automatically updated to latest patch levels during the maintenance window. This is usually less than a minute of downtime for the restart, though it can take longer on large busy databases.</p><p>You can opt out individual extensions by pinning their images in the corresponding <code>Cluster</code> resources.</p></div></div>
+            <div class="setup-heading"><span class="setup-number">02</span><div><h2 id="schedule-title">Schedule your updates</h2><p>Once alerts are working, refresh the catalog at the start of your maintenance window.</p><p>Databases and extensions will be automatically updated to latest patch levels during the maintenance window. This is usually less than a minute of downtime for the restart, though it can take longer on large busy databases.</p><p>You can opt out individual extensions by pinning their image digests in the corresponding <code>Cluster</code> resources.</p></div></div>
             <div class="terminal-body"><pre><code>kind: CronJob
 spec:
   schedule: "0 22 * * 2"
