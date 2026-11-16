@@ -221,7 +221,7 @@ def main():
             try:
                 with path.open() as f: meta=hcl2.load(f,serialization_options=SerializationOptions(strip_string_quotes=True,with_comments=False)).get('metadata',{})
             except Exception: continue
-            name=meta.get('image_name') or meta.get('name')
+            name=meta.get('name') or meta.get('image_name')
             if not isinstance(name,str) or not (path.parent/'README.md').exists():continue
             rel=(path.parent/'README.md').relative_to(CACHE/src).as_posix()
             recipes[(REPOS[src],name)]={'meta':meta,'readme':path.parent/'README.md','repo':REPOS[src],'commit':commits[src],'path':rel,
@@ -289,7 +289,7 @@ def main():
         text=recipe['readme'].read_text()
         soup=BeautifulSoup(markdown.markdown(text),'html.parser');first=soup.find('p')
         description=first.get_text(' ',strip=True) if first else name
-        entry={'name':name,'title':recipe['meta'].get('sql_name',name),'description':description,'publisher':publisher,'build':'PGRX' if recipe['build'].lower()=='pgrx' else recipe['build'].capitalize(),
+        entry={'name':name,'title':name,'sqlName':recipe['meta'].get('sql_name',''),'description':description,'publisher':publisher,'build':'PGRX' if recipe['build'].lower()=='pgrx' else recipe['build'].capitalize(),
             'source':f"https://github.com/{repo}/blob/main/{recipe['path']}", 'variants':variants,
             'version':variants[0]['version'],'distros':sorted({i['distro'] for i in variants}),'pgVersions':sorted({i['pg'] for i in variants}),
             'declaredLicenses':recipe['meta'].get('licenses',[])}

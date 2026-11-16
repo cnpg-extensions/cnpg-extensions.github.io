@@ -277,3 +277,31 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
 .recipe-license-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:12px 0}
 .overview-card .recipe-license-row .overview-caption{margin:0}
 .recipe-license-row .license-chips{min-width:0}
+
+.extension-setup dl{display:grid;grid-template-columns:minmax(130px,max-content) minmax(0,1fr);gap:9px 20px;margin:16px 0 0;font-size:14px}
+.extension-setup dt{color:var(--muted);font-size:12px}
+.extension-setup dd{margin:0;overflow-wrap:anywhere;min-width:0}
+.extension-setup small{color:var(--muted);font-size:12px}
+.extension-setup dd>small{display:block;margin-top:3px}
+.sql-version-different{color:var(--accent)}
+@media(max-width:600px){.extension-setup dl{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:8px 12px}}
+
+.overview-top-facts{align-items:start}
+.overview-package-column{min-width:0}
+.overview-package-column .overview-facts{border:0;padding:0}
+.overview-package-column .overview-facts+.overview-facts{margin-top:20px}
+.overview-top-facts>.extension-setup{margin-bottom:0;min-width:0}
+
+.extension-setup dl{grid-template-columns:max-content minmax(0,1fr)}
+
+.extension-setup .setup-parameters-title{font-size:12px;color:var(--muted);font-weight:600;margin:16px 0 7px}
+.setup-parameters-scroll{max-width:100%;overflow-x:auto}
+.extension-setup .setup-parameters{width:100%;table-layout:auto;margin:0;font-size:12px}
+.extension-setup .setup-parameters th,.extension-setup .setup-parameters td{padding:7px 8px;text-align:left;vertical-align:top;position:static}
+.extension-setup .setup-parameters th:first-child,.extension-setup .setup-parameters td:first-child{width:1%;white-space:nowrap}
+.extension-setup .setup-parameters td:last-child{overflow-wrap:anywhere}
+.extension-setup .setup-parameters code{font-size:12px}
+
+.overview-top-facts .extension-setup{border:0;padding:0;background:transparent}
+.overview-top-facts .extension-setup dl{grid-template-columns:max-content minmax(0,1fr);gap:7px 14px;margin:12px 0 0}
+.extension-setup .setup-parameters{background:transparent}

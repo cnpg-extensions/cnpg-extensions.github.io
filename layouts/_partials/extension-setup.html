@@ -1,0 +1,19 @@
+{{ $setup := .platform.setup }}{{ $version := .variant.version }}
+<section class="overview-facts extension-setup"><h3>Database setup</h3>
+<dl>
+<dt>Required extensions</dt><dd>{{ if eq $setup.requiredExtensions nil }}Not recorded{{ else }}{{ range $setup.requiredExtensions }}<div>{{ if hasPrefix . "base-image:" }}<code>{{ strings.TrimPrefix "base-image:" . }}</code> <small>(from the PostgreSQL base image)</small>{{ else }}{{ $name := . }}{{ if site.GetPage (printf "extensions/%s" .) }}<a href="{{ printf "extensions/%s/" . | relURL }}"><code>{{ . }}</code></a>{{ else }}<code>{{ . }}</code>{{ end }}{{ end }}</div>{{ else }}None specified{{ end }}{{ end }}</dd>
+<dt>SQL installation</dt><dd>{{ if eq $setup.createExtension false }}This recipe does not use <code>CREATE EXTENSION</code>.{{ else }}{{ with $setup.sqlName }}{{ $identifier := . }}{{ if not (findRE `^[a-z_][a-z0-9_]*$` .) }}{{ $identifier = printf "\"%s\"" (replace . "\"" "\"\"") }}{{ end }}<code>CREATE EXTENSION {{ $identifier }};</code>{{ else }}Not recorded{{ end }}{{ end }}</dd>
+<dt>SQL version</dt><dd>{{ with $setup.sqlVersion }}{{ if ne . $version }}<strong class="sql-version-different"><code>{{ . }}</code> — differs from extension version {{ $version }}</strong>{{ else }}<code>{{ . }}</code>{{ end }}{{ else }}Not recorded{{ end }}</dd>
+</dl>
+<h4 class="setup-parameters-title">PostgreSQL parameters</h4>
+{{ if or $setup.sharedPreloadLibraries $setup.postgresqlParameters }}
+<div class="setup-parameters-scroll"><table class="setup-parameters"><thead><tr><th scope="col">Parameter</th><th scope="col">Value</th></tr></thead><tbody>
+{{ with $setup.sharedPreloadLibraries }}<tr><td><code>shared_preload_libraries</code></td><td><code>'{{ delimit . "," }}'</code></td></tr>{{ end }}
+{{ range $key, $value := $setup.postgresqlParameters }}<tr><td><code>{{ $key }}</code></td><td><code>{{ $value }}</code></td></tr>{{ end }}
+</tbody></table></div>
+{{ else if and (ne $setup.sharedPreloadLibraries nil) (ne $setup.postgresqlParameters nil) }}<p class="overview-footnote">None specified</p>{{ end }}
+{{ if eq $setup.sharedPreloadLibraries nil }}<p class="overview-footnote">Shared preload libraries: not recorded</p>{{ end }}
+{{ if eq $setup.postgresqlParameters nil }}<p class="overview-footnote">Other parameters: not recorded</p>{{ end }}
+
+<p class="overview-footnote">These recipe settings are used in automated smoke tests.</p>
+</section>

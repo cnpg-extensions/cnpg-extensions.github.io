@@ -10,6 +10,8 @@ from pathlib import Path
 import re
 from urllib.parse import parse_qs, unquote, quote, urlsplit
 import requests
+import hcl2
+from hcl2.utils import SerializationOptions
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -39,6 +41,17 @@ def license_summary(packages):
             counts[expression] += 1
     return {'licenses': [{'expression': k, 'count': v} for k, v in sorted(counts.items(), key=lambda x: (-x[1], x[0]))], 'unknownPackages': unknown}
 
+def setup_metadata(metadata, variant):
+    version = metadata.get('versions', {}).get(variant['distro'], {}).get(str(variant['pg']), {})
+    return {
+        'sqlName': metadata.get('sql_name'),
+        'sqlVersion': version.get('sql'),
+        'sharedPreloadLibraries': metadata.get('shared_preload_libraries'),
+        'postgresqlParameters': metadata.get('postgresql_parameters'),
+        'requiredExtensions': metadata.get('required_extensions'),
+        'createExtension': metadata.get('create_extension'),
+    }
+
 def package_index(distro):
     url = f'https://apt.postgresql.org/pub/repos/apt/dists/{distro}-pgdg/main/binary-amd64/Packages.gz'
     cache = ROOT / '.cache' / f'overview-{distro}-Packages.gz'
@@ -66,6 +79,9 @@ def main():
         recipe_path = entry['source'].split('/blob/main/', 1)[-1]
         recipe = ROOT / '.cache' / cache_source / Path(recipe_path).with_name('metadata.hcl')
         recipe_text = recipe.read_text() if recipe.exists() else ''
+        metadata = hcl2.loads(recipe_text, serialization_options=SerializationOptions(strip_string_quotes=True, with_comments=False)).get('metadata', {}) if recipe_text else {}
+        entry['title'] = entry['name']
+        entry['sqlName'] = metadata.get('sql_name', '')
         upstream_repos = sorted(set(re.findall(r'datasource=(github|gitlab)-(?:tags|releases)\s+depName=([\w.-]+(?:/[\w.-]+)+)', recipe_text)))
         deb_names = list(dict.fromkeys(re.findall(r'suite=[\w-]+\s+depName=([\w.+-]+)', recipe_text)))
         for variant in entry['variants']:
@@ -82,6 +98,7 @@ def main():
                     links.append({'label': 'Upstream homepage', 'url': homepage, 'evidence': f'Homepage field in PGDG package metadata: {name}'})
             variant['projectLinks'] = list({(x['label'], x['url']): x for x in links}.values())
             for platform in variant['platforms']:
+                platform['setup'] = setup_metadata(metadata, variant)
                 if platform.get('sbom') and entry['publisher'] != 'cloudnative-pg':
                     sbom = json.loads((ROOT / 'static' / platform['sbom']).read_text())
                     originals = {(p['name'], p.get('versionInfo', 'Not recorded')): p for p in sbom.get('packages', [])}

@@ -8,10 +8,12 @@
 {{ $total := partial "advisory-total.html" (dict "platform" $p) }}
 <a href="#image-evidence" data-open-view="image-evidence" data-filter-advisories title="Open dependencies with findings from Grype or OSV. Unknown means scan coverage is incomplete."><strong>{{ if and $available (gt $total.count 0) }}Yes{{ else if and $available $total.complete }}No{{ else }}Unknown{{ end }}</strong><span>Advisories found</span></a>
 </div>
-<div class="overview-top-facts"><section class="overview-facts"><h3>Package details</h3><dl><dt>Extension version</dt><dd>{{ $v.version }}</dd><dt>Publisher</dt><dd>{{ $e.publisher }}</dd><dt>Build</dt><dd>{{ $e.build }}</dd><dt>Platform</dt><dd>{{ $v.distro | title }} · PG {{ $v.pg }} · {{ $p.architecture }}</dd></dl>
+<div class="overview-top-facts"><div class="overview-package-column"><section class="overview-facts"><h3>Package details</h3><dl><dt>Extension version</dt><dd>{{ $v.version }}</dd><dt>Publisher</dt><dd>{{ $e.publisher }}</dd><dt>Build</dt><dd>{{ $e.build }}</dd><dt>Platform</dt><dd>{{ $v.distro | title }} · PG {{ $v.pg }} · {{ $p.architecture }}</dd></dl>
 </section><section class="overview-facts"><h3>Project links</h3><ul>{{ range $v.projectLinks }}<li><a href="{{ .url }}">{{ .label }} ↗<small>{{ replaceRE `^https?://` "" .url }}</small></a></li>{{ end }}</ul>
 {{ if $v.projectLinks }}<p class="overview-footnote">Links from package metadata or recipe update rules.</p>{{ end }}
 </section></div>
+{{ partial "extension-setup.html" . }}
+</div>
 <div class="overview-license-columns"><section class="overview-card"><div class="overview-card-heading"><h3>Licenses</h3><a href="#image-licenses" data-open-view="image-licenses">Read notices →</a></div>
 <div class="recipe-license-row"><span class="overview-caption">Extension recipe</span><div class="license-chips">{{ range $e.declaredLicenses }}<span>{{ . }}</span>{{ else }}<span>Not recorded</span>{{ end }}</div></div>
 {{ if $available }}

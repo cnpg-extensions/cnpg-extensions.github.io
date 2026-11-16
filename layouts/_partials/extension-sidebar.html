@@ -9,7 +9,7 @@
 <nav class="extension-browser-list" aria-label="All extensions">
 {{ $current := .Params.extension }}
 {{ range sort hugo.Data.generated.extensions "title" }}
-<a href="{{ printf "extensions/%s/" .name | relURL }}" data-extension-search="{{ printf "%s %s %s" .name .title .description | lower }}"{{ if eq .name $current }} aria-current="page"{{ end }}>{{ .title }}</a>
+<a href="{{ printf "extensions/%s/" .name | relURL }}" data-extension-search="{{ printf "%s %s %s" .name .sqlName .description | lower }}"{{ if eq .name $current }} aria-current="page"{{ end }}>{{ .title }}</a>
 {{ end }}
 </nav>
 <p class="sidebar-empty" hidden>No matching extensions. Try another name or capability.</p>

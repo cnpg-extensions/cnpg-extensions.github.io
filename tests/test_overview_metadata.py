@@ -2,7 +2,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from overview_metadata import deb_identity, license_summary, valid_url
+from overview_metadata import deb_identity, license_summary, valid_url, setup_metadata
 
 class OverviewMetadataTests(unittest.TestCase):
     def test_license_expressions_preserved_and_package_not_double_counted(self):
@@ -23,3 +23,20 @@ class OverviewMetadataTests(unittest.TestCase):
         self.assertEqual(valid_url('javascript:alert(1)'), '')
         self.assertEqual(valid_url('NOASSERTION'), '')
         self.assertEqual(valid_url('https://postgis.net/'), 'https://postgis.net/')
+
+    def test_setup_uses_recipe_sql_version_and_preserves_requirements(self):
+        meta = {'sql_name': 'pg_cron', 'versions': {'trixie': {'18': {'sql': '2.0'}}},
+                'shared_preload_libraries': ['pg_cron'], 'postgresql_parameters': {'cron.database_name': 'app'},
+                'required_extensions': ['base-image:btree_gist'], 'create_extension': False}
+        setup = setup_metadata(meta, {'distro': 'trixie', 'pg': 18})
+        self.assertEqual(setup['sqlVersion'], '2.0')
+        self.assertEqual(setup['postgresqlParameters'], {'cron.database_name': 'app'})
+        self.assertEqual(setup['requiredExtensions'], ['base-image:btree_gist'])
+        self.assertFalse(setup['createExtension'])
+
+    def test_setup_missing_metadata_is_not_an_empty_requirement_list(self):
+        setup = setup_metadata({}, {'distro': 'trixie', 'pg': 18})
+        self.assertIsNone(setup['sharedPreloadLibraries'])
+        self.assertIsNone(setup['sqlVersion'])
+        fallback = setup_metadata({'versions': {'trixie': {'18': {'sql': '1.6'}}}}, {'distro': 'trixie', 'pg': 18})
+        self.assertEqual(fallback['sqlVersion'], '1.6')
