@@ -40,8 +40,11 @@ class MetadataTests(unittest.TestCase):
     def test_debian_link_uses_source_package_not_binary_name(self):
         p={'name':'libssl3','externalRefs':[{'referenceType':'purl','referenceLocator':'pkg:deb/debian/libssl3@3.0.1?upstream=openssl'}]}
         self.assertEqual(advisory_url(p),'https://security-tracker.debian.org/tracker/source-package/openssl')
-        p['externalRefs'][0]['referenceLocator']='pkg:deb/debian/libssl3@3.0.1'
-        self.assertEqual(advisory_url(p),'')
+        p['externalRefs'][0]['referenceLocator']='pkg:deb/debian/libssl3@3.0.1?upstream=openssl%403.0.1'
+        self.assertEqual(advisory_url(p),'https://security-tracker.debian.org/tracker/source-package/openssl')
+    def test_debian_source_defaults_to_binary_name_when_omitted(self):
+        p={'externalRefs':[{'referenceType':'purl','referenceLocator':'pkg:deb/debian/postgresql-18-age@1.8.0?arch=amd64'}]}
+        self.assertEqual(advisory_url(p),'https://security-tracker.debian.org/tracker/source-package/postgresql-18-age')
     def test_unknown_ecosystems_do_not_get_guessed_links(self):
         self.assertEqual(advisory_url({'name':'custom-library'}),'')
     def test_unavailable_database_is_not_clean_scan(self):

@@ -10,10 +10,11 @@ class GuideLayoutTests(unittest.TestCase):
         html='<h2 id="requirements">Requirements</h2><ul><li>Runtime requirement</li></ul><h3>Alerts</h3><pre>metric == 1</pre><h3>Maintenance</h3><details><summary>RBAC</summary><pre>kind: ClusterRole</pre></details><p>Rollout caveat</p>'
         soup=BeautifulSoup(getting_started(html),'html.parser')
         self.assertIn('Runtime requirement',soup.select_one('.guide-prerequisites').text)
-        folds=soup.select('details.guide-disclosure')
-        self.assertIn('metric == 1',folds[0].text)
-        self.assertIn('kind: ClusterRole',folds[1].text)
-        self.assertIn('Rollout caveat',folds[1].text)
+        self.assertFalse(soup.select('details.guide-disclosure'))
+        self.assertIsNone(soup.find('pre',string='metric == 1').find_parent('details'))
+        self.assertEqual(soup.find('details').summary.text, 'RBAC')
+        self.assertIn('kind: ClusterRole',soup.find('details').text)
+        self.assertIn('Rollout caveat',soup.text)
         self.assertEqual([pre.text for pre in soup.find_all('pre')], ['metric == 1', 'kind: ClusterRole'])
         self.assertEqual(soup.select_one('#schedule-maintenance').name, 'h2')
 

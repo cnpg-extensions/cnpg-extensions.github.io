@@ -181,6 +181,8 @@ Grype can match Rust dependencies against GitHub advisories, but does not yet co
 
 Until that gap is resolved, install [OSV-Scanner](https://google.github.io/osv-scanner/installation/) and scan the **same, unchanged SBOM** for additional RustSec coverage:
 
+{{< disclosure title="Run OSV-Scanner against the SBOM" >}}
+
 ```sh
 osv-scanner scan source -L image.spdx.json
 ```
@@ -193,9 +195,7 @@ osv-scanner scan source -L image.spdx.json --format json > osv-results.json
 
 Keep the `.spdx.json` filename so OSV-Scanner recognizes the format. It queries OSV for the package versions in the SBOM; no Cargo.lock or source checkout is needed. Exit code `1` means findings were returned.
 
-Use this as a supplement to the Grype scan above, not a replacement for Debian package checks. RustSec results can include unmaintained-package and unsoundness notices as well as vulnerabilities; review each advisory's affected platforms and conditions.
-
-Our SBOM format remains aligned with CloudNativePG. Website automation runs both documented scans against the unchanged SBOM. Debian and other non-Rust packages use Grype results; Rust packages use both Grype and OSV. The website shows **Yes** if a relevant scanner finds advisories, **No** when all relevant scans complete without findings, and **Unknown** otherwise. Image-level indicators require OSV only when the SBOM includes Rust packages. This avoids double-counting overlapping advisories. RustSec informational notices are included. Select the indicator to open Dependencies filtered to packages with advisories; package links lead to Debian’s security tracker or the Rust package version on deps.dev. Automated checks must mirror commands documented here so you can reproduce them against the same SBOM yourself.
+{{< /disclosure >}}
 
 ## Rapid updates {#updates}
 

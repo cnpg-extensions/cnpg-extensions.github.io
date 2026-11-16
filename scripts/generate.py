@@ -51,7 +51,8 @@ def advisory_url(package):
     if kind=='cargo' and not qualifiers.get('repository_url'):
         return 'https://deps.dev/cargo/'+quote(unquote(name),safe='')+'/'+quote(unquote(version),safe='')
     if kind=='deb' and name.startswith('debian/'):
-        source=qualifiers.get('upstream',[''])[0]
+        # Debian omits Source when source and binary names/versions match.
+        source=(qualifiers.get('upstream',[''])[0] or unquote(name.split('/',1)[1])).split('@',1)[0]
         if source: return 'https://security-tracker.debian.org/tracker/source-package/'+quote(source,safe='')
     return ''
 
@@ -307,7 +308,6 @@ def main():
     requirements='## Requirements'+readme.split('## Requirements',1)[1].split('\n---',1)[0]
     quick=readme.split('## Quick start',1)[1].split('\n## Supported Extensions',1)[0].strip().rstrip('-\n')
     (ROOT/'content/getting-started.md').write_text('---\ntitle: Get started\ndescription: Configure alerts, install the catalog, and enable extensions in your databases.\n---\n'+
-        '<p class="source-note">From the <a href="https://github.com/cnpg-extensions/postgres-extensions-containers/blob/'+commits['source']+'/README.md">project quick start</a>.</p>\n'+
         getting_started(readme_html(requirements+'\n\n'+quick,REPOS['source'],commits['source'],'README.md',routes,depth=1)))
     subprocess.run([sys.executable, str(ROOT/'scripts/overview_metadata.py')], check=True)
     print(f'Generated {len(entries)} extension pages from {len(images)} catalog images',flush=True)
