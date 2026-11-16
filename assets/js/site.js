@@ -3,18 +3,24 @@ const media = matchMedia('(prefers-color-scheme: dark)');
 let preference = 'system';
 try { preference = localStorage.getItem('cnpg-mode') || 'system'; } catch {}
 if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
-const themeOptions = document.querySelectorAll('input[name="color-theme"]');
+const themeButton = document.querySelector('.theme-switcher');
+const themeModes = ['system', 'light', 'dark'];
 function applyMode() {
  root.dataset.mode = preference === 'system' ? (media.matches ? 'dark' : 'light') : preference;
- themeOptions.forEach(option => { option.checked = option.value === preference; });
+ const next = themeModes[(themeModes.indexOf(preference) + 1) % themeModes.length];
+ const label = `Theme: ${preference === 'system' ? 'System (automatic)' : preference === 'light' ? 'Light' : 'Dark'}. Switch to ${next === 'system' ? 'System' : next === 'light' ? 'Light' : 'Dark'}.`;
+ if (themeButton) {
+  themeButton.title = label;
+  themeButton.setAttribute('aria-label', label);
+  themeButton.querySelectorAll('[data-theme-icon]').forEach(icon => { icon.hidden = icon.dataset.themeIcon !== preference; });
+ }
 }
 applyMode(); media.addEventListener('change', applyMode);
-themeOptions.forEach(option => option.addEventListener('change', () => {
- if (!option.checked) return;
- preference = option.value;
+themeButton?.addEventListener('click', () => {
+ preference = themeModes[(themeModes.indexOf(preference) + 1) % themeModes.length];
  try { localStorage.setItem('cnpg-mode', preference); } catch {}
  applyMode();
-}));
+});
 window.addEventListener('storage', event => {
  if (event.key !== 'cnpg-mode' && event.key !== null) return;
  preference = ['light', 'dark'].includes(event.newValue) ? event.newValue : 'system';

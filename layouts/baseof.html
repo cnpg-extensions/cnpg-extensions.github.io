@@ -16,7 +16,7 @@
 <header class="site-header"><div class="nav-inner">
 <a class="brand" href="{{ `` | relURL }}" aria-label="CNPG Extensions home"><img src="{{ `assets/cnpg-extensions.png` | relURL }}" alt="CNPG Extensions" width="2048" height="365"></a>
 <nav class="desktop-nav" aria-label="Main navigation">{{ partial "navigation.html" . }}</nav>
-<div class="nav-tools">{{ partial "theme-switcher.html" . }}<button class="mobile-menu" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Toggle navigation menu"><span class="menu-label">Menu</span> <span aria-hidden="true">☰</span></button></div>
+<div class="nav-tools">{{ partial "theme-switcher.html" . }}<button class="mobile-menu" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Toggle navigation menu">Menu <span aria-hidden="true">☰</span></button></div>
 </div><nav id="mobile-nav" aria-label="Mobile navigation" hidden>{{ partial "navigation.html" . }}</nav></header>
 <main id="main">{{ block "main" . }}{{ end }}</main>
 <footer class="wrap site-footer"><span>Open source. Built for CloudNativePG.</span><span><a href="{{ `security/` | relURL }}">Security &amp; transparency</a> · <a href="https://github.com/cnpg-extensions">GitHub ↗</a></span></footer>
