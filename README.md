@@ -122,7 +122,7 @@ For images from every publisher, the generator uses Docker to pull the
 catalog-resolved platform manifest by digest, create (but never run) a container,
 and export its final filesystem. Files under `/licenses` are displayed verbatim
 with their paths and SHA256 hashes. This does not produce a dependency inventory;
-upstream dependency tables remain hidden. The Container licenses tab shows shipped license files with expandable text.
+upstream dependency tables remain hidden. The Licenses tab shows shipped license files with expandable text.
 The original downloadable SBOM retains any embedded license records. Retrieval failures are shown separately
 from an inspected image with no notice files.
 
