@@ -5,60 +5,36 @@
 <article class="extension-detail extension-redesign">
 <a class="back-link" href="{{ `extensions/` | relURL }}">← Explore extensions</a>
 <header class="extension-heading"><div><h1>{{ .Title }}</h1></div><a class="source-link" href="{{ $entry.source }}" target="_blank" rel="noopener">Source README ↗</a></header>
-<nav class="detail-view-nav" aria-label="Extension views"><a href="#readme" data-detail-view="readme">Documentation</a><a href="#image-evidence" data-detail-view="image-evidence">Dependencies &amp; licenses</a></nav>
+<nav class="detail-view-nav" aria-label="Extension views"><a href="#readme" data-detail-view="readme">Documentation</a><a href="#overview" data-detail-view="overview">Overview</a><a href="#image-evidence" data-detail-view="image-evidence">Dependencies</a><a href="#image-licenses" data-detail-view="image-licenses">Container licenses</a></nav>
+<div class="inventory-controls" hidden><label>Image<select id="image-choice">{{ range $v := $entry.variants }}{{ $variant := printf "%s-pg%v" .distro .pg }}{{ range .platforms }}<option value="{{ $variant }}-{{ .architecture }}" data-variant="{{ $variant }}" data-architecture="{{ .architecture }}">{{ $v.distro | title }} · PG {{ $v.pg }} · {{ .architecture }}</option>{{ else }}<option value="{{ $variant }}-unavailable" data-variant="{{ $variant }}" data-architecture="unavailable">{{ $v.distro | title }} · PG {{ $v.pg }} · Unavailable</option>{{ end }}{{ end }}</select></label></div>
 <section id="readme" class="detail-view"><div class="readme-layout"><aside class="readme-nav" hidden><details open><summary>On this page</summary><nav aria-label="Documentation contents"></nav></details></aside><div class="prose readme-content">{{ .Content }}</div></div></section>
-<section id="image-evidence" class="detail-view inventory-view">
-<div class="inventory-intro"><h2>What’s in the container?</h2><p>Package versions, license evidence, and advisory links for the image you deploy.</p></div>
-<div class="inventory-controls" hidden><label>Image<select id="image-choice">{{ range $i, $v := $entry.variants }}<option value="{{ $v.distro }}-pg{{ $v.pg }}">{{ $v.distro | title }} · PG {{ $v.pg }}</option>{{ end }}</select></label><label>Architecture<select id="architecture-choice"></select></label></div>
-{{ range $i, $v := $entry.variants }}
-{{ $upstream := hasPrefix $v.reference "ghcr.io/cloudnative-pg/" }}
-{{ if not $v.platforms }}<div class="inventory-panel" data-variant="{{ $v.distro }}-pg{{ $v.pg }}" data-architecture="unavailable"><p class="status-note">Image evidence is currently unavailable. The source documentation remains available.</p></div>{{ end }}
-{{ range $v.platforms }}{{ $platform := . }}
+
+{{ range $view := slice "overview" "image-evidence" "image-licenses" }}
+<section id="{{ $view }}" class="detail-view inventory-view">
+{{ if eq $view "image-evidence" }}
+<form class="dependency-filters" role="search" aria-label="Filter dependencies" hidden>
+<label>Package name<input type="search" name="package" placeholder="e.g. tokio" autocomplete="off"></label>
+<label>License<input type="search" name="license" placeholder="e.g. MIT, Apache, LicenseRef" autocomplete="off"></label>
+<label class="advisory-filter"><input type="checkbox" name="advisories"> Advisories found</label>
+<button type="reset">Clear filters</button>
+</form>
+{{ end }}
+{{ range $v := $entry.variants }}
+{{ if not $v.platforms }}<div class="inventory-panel" data-variant="{{ $v.distro }}-pg{{ $v.pg }}" data-architecture="unavailable"><p class="status-note">Image evidence is currently unavailable.</p></div>{{ end }}
+{{ range $platform := $v.platforms }}
 <div class="inventory-panel" data-variant="{{ $v.distro }}-pg{{ $v.pg }}" data-architecture="{{ .architecture }}">
-<div class="inventory-summary"><p><strong>{{ $v.distro | title }} · Postgres {{ $v.pg }} · {{ .architecture }}</strong><span>Extension version {{ $v.version }}</span></p>{{ if and (not $upstream) (eq .status "available") }}<a href="{{ .sbom | relURL }}" download>Download SBOM ↓</a>{{ end }}</div>
-{{ if $upstream }}
-<div class="missing-evidence"><h3>Dependency inventory unavailable</h3><p>This image is published by CloudNativePG. A reliable SBOM inventory of its shipped dependencies is not available yet.</p></div>
-<section class="evidence-downloads image-details" aria-label="Image details"><h3>Image details</h3><p class="image-reference"><code>{{ $v.reference }}</code></p><p>Platform digest: <code>{{ .digest }}</code></p><p><a href="https://github.com/cloudnative-pg/postgres-extensions-containers">Upstream image documentation ↗</a></p></section>
-{{ with .containerNotices }}
-<details class="evidence-downloads license-notices"><summary>Original license notices{{ if eq .status "available" }} · {{ len .files }} files in the image{{ end }}</summary>
-{{ if eq .status "available" }}
-<p>Read directly from <code>/licenses</code> in this image and architecture, without running the container. These are shipped notice files, not a dependency inventory.</p>
-{{ range .files }}<details class="container-notice"><summary><code>{{ .path }}</code></summary><pre class="license-text">{{ .text }}</pre><p class="notice-checksum">File SHA256: <code>{{ .sha256 }}</code></p></details>{{ else }}<p>No license files were found under <code>/licenses</code> in this image.</p>{{ end }}
-{{ else }}<p>License files could not be retrieved from this image during the latest website build.</p>{{ end }}
-<p><a href="{{ `security/#retrieve-an-original-notice` | relURL }}">How to retrieve an original notice yourself →</a></p>
-</details>{{ end }}
-{{ else if eq .status "available" }}
-<p class="inventory-help">Advisory counts are Grype matches for this package version, not a safety rating. External databases may differ. Debian links cover the source package across releases.</p>
-<p class="inventory-result" role="status" aria-live="polite">{{ len .packages }} packages{{ with .scan }}{{ if eq .status "scanned" }} · Scanned {{ time.Format "2 Jan 2006" .scannedAt }}{{ else }} · Scan unavailable{{ end }}{{ end }}</p>
-<div class="dependency-table-scroll"><table class="dependency-table"><thead><tr><th>Package / installed version</th><th>License evidence</th><th>Advisories</th></tr></thead><tbody>
-{{ range .packages }}
-{{ $package := . }}{{ $files := slice }}{{ range .files }}{{ if and . (ne . "NOASSERTION") }}{{ $files = $files | append . }}{{ end }}{{ end }}
-{{ $license := .declared }}{{ if or (not $license) (eq $license "NOASSERTION") }}{{ $license = .concluded }}{{ end }}{{ if or (not $license) (eq $license "NOASSERTION") }}{{ $license = delimit $files "; " }}{{ end }}
+{{ $upstream := hasPrefix $v.reference "ghcr.io/cloudnative-pg/" }}
+{{ $context := dict "entry" $entry "variant" $v "platform" $platform "upstream" $upstream }}
+{{ if eq $view "overview" }}{{ partial "extension-overview.html" $context }}
+{{ else if eq $view "image-licenses" }}{{ partial "extension-licenses.html" $context }}
+{{ else }}
+<div class="inventory-intro"><h2>Dependencies</h2><p>Packages shipped in this image, including the extension itself.</p></div>
+{{ if $upstream }}<p class="status-note">This image is published by CloudNativePG. A reliable SBOM inventory of its shipped dependencies is not available yet.</p>
+{{ else if eq .status "available" }}{{ partial "extension-dependencies.html" $context }}
 
-{{ $matches := slice }}{{ $scanned := eq $platform.scan.status "scanned" }}{{ if $scanned }}{{ range where $platform.scan.findings "package" .name }}{{ if eq .version $package.version }}{{ $matches = $matches | append .id }}{{ end }}{{ end }}{{ end }}{{ $count := len ($matches | uniq) }}
-<tr><td><div class="dependency-identity"><span class="dependency-name">{{ .name }}</span><code class="dependency-version">{{ .version }}</code></div></td><td>{{ if $license }}<div class="license-evidence"><span>{{ $license }}</span>
-{{ if and .concluded (ne .concluded "NOASSERTION") (ne .concluded $license) }}<div class="license-additional"><span>Concluded:</span> {{ .concluded }}</div>{{ end }}
-{{ $additional := slice }}{{ range $files | uniq }}{{ if and (ne . $license) (ne . $package.concluded) }}{{ $additional = $additional | append . }}{{ end }}{{ end }}
-{{ if and $additional (ne $license (delimit $files "; ")) }}<div class="license-additional"><span>From files:</span> {{ delimit $additional "; " }}</div>{{ end }}
-</div>{{ else }}<span class="advisory-unlinked">Not recorded</span>{{ end }}</td><td>
-{{ with .advisoryURL }}<a class="advisory-link{{ if gt $count 0 }} has-matches{{ end }}" href="{{ . }}" target="_blank" rel="noopener" title="{{ if $scanned }}{{ $count }} unique advisory IDs matched by Grype.{{ else }}Grype scan unavailable; no count is shown.{{ end }} External results may differ.">Advisories{{ if $scanned }} ({{ $count }}){{ end }} ↗</a>{{ else }}<span class="advisory-unlinked">{{ if $scanned }}{{ $count }} Grype {{ if eq $count 1 }}match{{ else }}matches{{ end }}{{ else }}Not scanned{{ end }}</span>{{ end }}
-</td></tr>{{ end }}</tbody></table></div>
-
-<section class="evidence-downloads image-details" aria-label="Image details and original evidence"><h3>Image details &amp; original evidence</h3><p class="image-reference"><code>{{ $v.reference }}</code></p><p>Platform digest: <code>{{ .digest }}</code></p><p>SBOM records are checked against their published digest. <a href="{{ `security/` | relURL }}">Verify publisher signatures and inspect provenance →</a></p>{{ with .scan }}{{ if eq .status "scanned" }}<p>Grype {{ .scanner }} · {{ time.Format "2 Jan 2006, 15:04 UTC" .scannedAt }} · <a href="{{ .report | relURL }}" download>Download scan report ↓</a></p>{{ else }}<p>{{ .reason }}</p>{{ end }}{{ end }}<p>NOASSERTION means the SBOM makes no assertion. LicenseRef entries refer to custom or unclassified terms. The PostgreSQL base image is separate.</p></section>
-
-{{ $notices := slice }}{{ $omitted := 0 }}
-{{ range .licenses }}{{ $text := strings.TrimSpace .extractedText }}{{ if or (eq $text "NOASSERTION") (eq $text "") }}{{ $omitted = add $omitted 1 }}{{ else }}{{ $notices = $notices | append . }}{{ end }}{{ end }}
-<details class="evidence-downloads license-notices"><summary>Original license notices{{ with .noticeFiles }} · {{ len . }} files in the image{{ end }}</summary>
-<h4>License files in the container</h4>
-{{ with .noticeFiles }}<p>These paths are recorded in the selected image’s SBOM. File contents have not yet been retrieved by this website.</p><ul class="notice-file-list">{{ range . }}<li><code>{{ . }}</code></li>{{ end }}</ul>
-<p><a href="{{ `security/#retrieve-an-original-notice` | relURL }}">How to retrieve and verify a notice from the image →</a></p>
-{{ else }}<p>No license-file paths are recorded in the expected notice directories in this SBOM. This does not establish that the image contains no license files.</p>{{ end }}
-<h4>Notice text embedded in the SBOM</h4>
-{{ if $omitted }}<p>{{ $omitted }} records without notice text are omitted here. The complete records remain in the downloadable SBOM.</p>{{ end }}
-{{ range $notices }}<h4>{{ .licenseId }}</h4><pre class="license-text">{{ .extractedText }}</pre>{{ else }}<p>No original notice text is recorded in this SBOM.</p>{{ end }}
-</details>
-{{ else }}<div class="missing-evidence"><h3>Package evidence isn’t available for this image.</h3><p>{{ .reason }}. You can still use the documentation and inspect the published image.</p><p class="image-reference"><code>{{ $v.reference }}</code></p><a href="{{ `security/` | relURL }}">How to inspect an image →</a></div>{{ end }}
+{{ else }}<p class="status-note">Package evidence is unavailable for this image.</p>{{ end }}
+{{ end }}
 </div>{{ end }}{{ end }}
-</section>
+</section>{{ end }}
 <footer class="inventory-footer">{{ with hugo.Data.generated.sourceRefreshedAt }}Sources refreshed {{ time.Format "2 Jan 2006, 15:04 UTC" . }}.{{ else }}Source refresh time not recorded.{{ end }}</footer>
 </article></div>{{ end }}

@@ -175,6 +175,28 @@ grype sbom:image.spdx.json -o table
 grype sbom:image.spdx.json -o json > vulnerabilities.json
 ```
 
+### RustSec coverage: temporary workaround
+
+Grype can match Rust dependencies against GitHub advisories, but does not yet consume the RustSec database directly. Direct support is tracked in [Grype issue #529](https://github.com/anchore/grype/issues/529). Some RustSec advisories can therefore be missing from Grype results, when using Grype alone.
+
+Until that gap is resolved, install [OSV-Scanner](https://google.github.io/osv-scanner/installation/) and scan the **same, unchanged SBOM** for additional RustSec coverage:
+
+```sh
+osv-scanner scan source -L image.spdx.json
+```
+
+To save a machine-readable report:
+
+```sh
+osv-scanner scan source -L image.spdx.json --format json > osv-results.json
+```
+
+Keep the `.spdx.json` filename so OSV-Scanner recognizes the format. It queries OSV for the package versions in the SBOM; no Cargo.lock or source checkout is needed. Exit code `1` means findings were returned.
+
+Use this as a supplement to the Grype scan above, not a replacement for Debian package checks. RustSec results can include unmaintained-package and unsoundness notices as well as vulnerabilities; review each advisory's affected platforms and conditions.
+
+Our SBOM format remains aligned with CloudNativePG. Website automation runs both documented scans against the unchanged SBOM. Debian and other non-Rust packages use Grype results; Rust packages use both Grype and OSV. The website shows **Yes** if a relevant scanner finds advisories, **No** when all relevant scans complete without findings, and **Unknown** otherwise. Image-level indicators require OSV only when the SBOM includes Rust packages. This avoids double-counting overlapping advisories. RustSec informational notices are included. Select the indicator to open Dependencies filtered to packages with advisories; package links lead to Debian’s security tracker or the Rust package version on deps.dev. Automated checks must mirror commands documented here so you can reproduce them against the same SBOM yourself.
+
 ## Rapid updates {#updates}
 
 Catalog refreshes run daily and after successful extension builds. Eligible dependency updates are automated after required checks pass; major updates and cases requiring SQL-version review remain manual. [Read the current update policy](https://github.com/cnpg-extensions/postgres-extensions-containers#automated-dependency-updates).

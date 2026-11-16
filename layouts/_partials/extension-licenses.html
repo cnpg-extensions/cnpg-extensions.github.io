@@ -1,0 +1,9 @@
+{{ $p := .platform }}
+<div class="inventory-intro"><h2>Container licenses</h2><p>Original license files shipped in the selected container image.</p></div>
+{{ if eq $p.containerNotices.status "available" }}
+<p class="notice-intro">{{ len $p.containerNotices.files }} {{ if eq (len $p.containerNotices.files) 1 }}file{{ else }}files{{ end }} read directly from <code>/licenses</code>, without running the container.</p>
+<div class="image-notice-files">{{ range $p.containerNotices.files }}<details class="container-notice"><summary><code>{{ .path }}</code><span class="notice-open-label">Read notice</span></summary><pre class="license-text">{{ .text }}</pre><p class="notice-checksum">SHA256: <code>{{ .sha256 }}</code></p></details>{{ else }}<p>No license files were found under <code>/licenses</code>.</p>{{ end }}</div>
+{{ else }}
+{{ with $p.noticeFiles }}<p class="notice-intro">{{ len . }} paths recorded in the SBOM. The image file contents have not been retrieved for this selection.</p><ul class="notice-file-list">{{ range . }}<li><code>{{ . }}</code></li>{{ end }}</ul>{{ else }}<p class="notice-intro">License files could not be retrieved for this selection.</p>{{ end }}
+{{ end }}
+<p class="notice-help"><a href="{{ `security/#retrieve-an-original-notice` | relURL }}">How to retrieve and verify an original notice →</a></p>

@@ -1,0 +1,23 @@
+{{ $platform := .platform }}{{ $total := partial "advisory-total.html" (dict "platform" $platform) }}
+{{ with $platform }}
+
+<p class="inventory-result" role="status" aria-live="polite"><span data-filter-result>{{ len .packages }} packages</span>{{ with .scan }}{{ if eq .status "scanned" }} · Scanned {{ time.Format "2 Jan 2006" .scannedAt }}{{ else }} · Scan unavailable{{ end }}{{ end }}</p>
+<div class="dependency-table-scroll"><table class="dependency-table" data-scanned="{{ $total.available }}"><thead><tr><th scope="col">Package / installed version</th><th scope="col">License evidence</th><th scope="col">Advisories</th></tr></thead><tbody>
+{{ range .packages }}
+{{ $package := . }}{{ $files := slice }}{{ range .files }}{{ if and . (ne . "NOASSERTION") }}{{ $files = $files | append . }}{{ end }}{{ end }}
+{{ $license := .declared }}{{ if or (not $license) (eq $license "NOASSERTION") }}{{ $license = .concluded }}{{ end }}{{ if or (not $license) (eq $license "NOASSERTION") }}{{ $license = delimit $files "; " }}{{ end }}
+
+{{ $advisories := partial "advisory-total.html" (dict "platform" $platform "package" $package) }}{{ $scanned := $advisories.available }}{{ $count := $advisories.count }}
+
+<tr data-package="{{ .name }}" data-advisories="{{ if $scanned }}{{ $count }}{{ else }}unknown{{ end }}"><td><div class="dependency-identity"><span class="dependency-name">{{ with .packageURL }}<a href="{{ . }}" target="_blank" rel="noopener">{{ $package.name }} ↗</a>{{ else }}{{ .name }}{{ end }}</span><code class="dependency-version">{{ .version }}</code></div></td><td>{{ if $license }}<div class="license-evidence"><span>{{ $license }}</span>
+{{ if and .concluded (ne .concluded "NOASSERTION") (ne .concluded $license) }}<div class="license-additional"><span>Concluded:</span> {{ .concluded }}</div>{{ end }}
+{{ $additional := slice }}{{ range $files | uniq }}{{ if and (ne . $license) (ne . $package.concluded) }}{{ $additional = $additional | append . }}{{ end }}{{ end }}
+{{ if and $additional (ne $license (delimit $files "; ")) }}<div class="license-additional"><span>From files:</span> {{ delimit $additional "; " }}</div>{{ end }}
+</div>{{ else }}<span class="advisory-unlinked">Not recorded</span>{{ end }}</td><td>
+{{ $indicator := "Unknown" }}{{ if gt $count 0 }}{{ $indicator = "Yes" }}{{ else if $advisories.complete }}{{ $indicator = "No" }}{{ end }}
+{{ with .advisoryURL }}<a class="advisory-link{{ if gt $count 0 }} has-matches{{ end }}" href="{{ . }}" aria-label="{{ $package.name }}: advisories {{ $indicator }}. View package details" title="Check this package's advisories. External results may differ.">{{ $indicator }} ↗</a>{{ else }}<span class="advisory-unlinked">{{ $indicator }}</span>{{ end }}
+</td></tr>{{ end }}</tbody></table></div>
+<p class="dependency-no-results" hidden>No packages match these filters. Try a different name or license, or clear the filters.</p>
+
+
+{{ end }}

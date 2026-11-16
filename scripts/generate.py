@@ -5,6 +5,7 @@ No per-extension editorial data. Network failures are explicit, never zero findi
 import argparse, concurrent.futures, hashlib, json, os, re, shutil, subprocess, sys
 from datetime import datetime, timezone
 from image_notices import container_notices
+from osv_scan import scan_osv
 from guide_layout import getting_started
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit, parse_qs, unquote, quote
@@ -54,12 +55,20 @@ def advisory_url(package):
         if source: return 'https://security-tracker.debian.org/tracker/source-package/'+quote(source,safe='')
     return ''
 
+def package_ecosystem(package):
+    for ref in package.get('externalRefs', []):
+        if ref.get('referenceType') == 'purl':
+            purl = ref.get('referenceLocator', '')
+            if purl.startswith('pkg:'):
+                return purl[4:].split('/', 1)[0]
+    return ''
+
 def packages(spdx):
     # Preserve both SPDX fields and all expressions; never split AND/OR into a claim of alternatives.
     return sorted([{'name':p['name'],'version':p.get('versionInfo','Not recorded'),
                     'declared':p.get('licenseDeclared','NOASSERTION'),
                     'concluded':p.get('licenseConcluded','NOASSERTION'),
-                    'files':p.get('licenseInfoFromFiles',[]),'advisoryURL':advisory_url(p)} for p in spdx.get('packages',[])],key=lambda p:(p['name'],p['version']))
+                    'files':p.get('licenseInfoFromFiles',[]),'ecosystem':package_ecosystem(p),'advisoryURL':advisory_url(p)} for p in spdx.get('packages',[])],key=lambda p:(p['name'],p['version']))
 
 def notice_files(spdx):
     """Find notice paths in the shipped-file inventory, not embedded license records."""
@@ -147,6 +156,7 @@ def inspect_image(item, grype, database):
                 record.update(status='available',packages=packages(spdx),licenses=spdx.get('hasExtractedLicensingInfos',[]),sbom=str(dest.relative_to(ROOT/'static')))
                 try: record['scan']=scan(dest,grype,database)
                 except Exception as ex: record['scan']={'status':'unavailable','reason':str(ex)}
+                record['osvScan']=scan_osv(dest,ROOT,shutil.which('osv-scanner') if grype else None)
             except Exception as ex: record['reason']=str(ex)
             result['platforms'].append(record)
         result['status']='available'
@@ -233,7 +243,7 @@ def main():
             raise RuntimeError('Cached evidence does not match current catalogs; regenerate it')
     else:
         grype=shutil.which('grype') if args.scan else None
-        if args.scan and not grype:raise RuntimeError('--scan requires Grype')
+        if args.scan and (not grype or not shutil.which('osv-scanner')):raise RuntimeError('--scan requires Grype and OSV-Scanner')
         database={}
         if grype:
             p=subprocess.run([grype,'db','update'],capture_output=True,text=True)
@@ -253,15 +263,13 @@ def main():
                 spdx=json.loads((ROOT/'static'/platform['sbom']).read_text())
                 platform['packages']=packages(spdx)
                 platform['noticeFiles']=notice_files(spdx)
-    # Upstream scratch images have no usable dependency inventory. Read shipped
-    # notices independently from /licenses in their final filesystem.
+    # Read shipped notices for every publisher, independently of SBOM availability.
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
         pending=[]
         for image in images:
-            if image['reference'].startswith('ghcr.io/cloudnative-pg/'):
-                for platform in image['platforms']:
-                    pending.append((platform, pool.submit(container_notices,
-                        image['reference'], platform['architecture'], platform['digest'], CACHE)))
+            for platform in image['platforms']:
+                pending.append((platform, pool.submit(container_notices,
+                    image['reference'], platform['architecture'], platform['digest'], CACHE)))
         for platform, future in pending:
             platform['containerNotices']=future.result()
     entries=[]
@@ -301,6 +309,7 @@ def main():
     (ROOT/'content/getting-started.md').write_text('---\ntitle: Get started\ndescription: Configure alerts, install the catalog, and enable extensions in your databases.\n---\n'+
         '<p class="source-note">From the <a href="https://github.com/cnpg-extensions/postgres-extensions-containers/blob/'+commits['source']+'/README.md">project quick start</a>.</p>\n'+
         getting_started(readme_html(requirements+'\n\n'+quick,REPOS['source'],commits['source'],'README.md',routes,depth=1)))
+    subprocess.run([sys.executable, str(ROOT/'scripts/overview_metadata.py')], check=True)
     print(f'Generated {len(entries)} extension pages from {len(images)} catalog images',flush=True)
 
 if __name__=='__main__':main()

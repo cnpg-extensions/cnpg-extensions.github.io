@@ -1,0 +1,13 @@
+{{ $platform := .platform }}{{ $count := 0 }}{{ $complete := true }}{{ $any := false }}
+{{ $needsOSV := false }}
+{{ if .package }}{{ $needsOSV = eq .package.ecosystem "cargo" }}
+{{ else }}{{ range $platform.packages }}{{ if eq .ecosystem "cargo" }}{{ $needsOSV = true }}{{ end }}{{ end }}{{ end }}
+{{ $scans := slice ($platform.scan | default dict) }}
+{{ if $needsOSV }}{{ $scans = $scans | append ($platform.osvScan | default dict) }}{{ end }}
+{{ range $scans }}
+  {{ if eq .status "scanned" }}{{ $any = true }}{{ $ids := slice }}
+    {{ range .findings }}{{ if or (not $.package) (and (eq .package $.package.name) (eq .version $.package.version)) }}{{ $ids = $ids | append .id }}{{ end }}{{ end }}
+    {{ $count = add $count (len ($ids | uniq)) }}
+  {{ else }}{{ $complete = false }}{{ end }}
+{{ end }}
+{{ return (dict "count" $count "complete" $complete "available" $any) }}
