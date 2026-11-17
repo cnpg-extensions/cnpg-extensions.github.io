@@ -314,7 +314,7 @@ body[data-theme] .get-started-section .technical{margin-top:0}
 .github-link,.maintainer-link{display:inline-flex;align-items:center;gap:7px}
 .github-icon{flex-shrink:0;width:20px;height:20px}
 .maintainer-bio .link-icon{width:20px;height:20px;border-radius:0;object-fit:contain}
-.catalog-request{margin-bottom:20px;font-size:15px}
+.catalog-search-heading{display:flex;justify-content:space-between;align-items:baseline;gap:16px}.catalog-request{font-size:14px;text-align:right}
 
 .maintainer-role,.maintainer-links{display:flex;align-items:center;gap:12px}
 .maintainer-role{flex-wrap:wrap}
