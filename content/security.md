@@ -201,4 +201,4 @@ Keep the `.spdx.json` filename so OSV-Scanner recognizes the format. It queries 
 
 Catalog refreshes run daily and after successful extension builds. Eligible dependency updates are automated after required checks pass; major updates and cases requiring SQL-version review remain manual. [Read the current update policy](https://github.com/cnpg-extensions/postgres-extensions-containers#automated-dependency-updates).
 
-Your CronJob initiates catalog updates at the start of your maintenance window. It does not impose a rollout end time. Catalog-referencing clusters adopt changed image references; SQL extension upgrades can still need an explicit version change or `ALTER EXTENSION … UPDATE`. [Set up monitoring before scheduling updates](../getting-started/).
+Your CronJob initiates catalog updates at the start of your maintenance window. It does not impose a rollout end time. Catalog-referencing clusters adopt changed image references; SQL extension upgrades can still need an explicit version change or `ALTER EXTENSION … UPDATE`. [Set up monitoring before scheduling updates](../get-started/).

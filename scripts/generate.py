@@ -197,13 +197,16 @@ def readme_html(text, repo, commit, path, routes, depth=2):
             target=absolute.split('#')[0].split(f'/blob/{commit}/')[-1]
             if a.name=='img': absolute=urljoin(f'https://raw.githubusercontent.com/{repo}/{commit}/{path}',link)
             elif (repo,target) in routes: absolute='../'*depth+routes[(repo,target)]+('/#'+link.split('#',1)[1] if '#' in link else '/')
-            if a.name=='a' and target=='README.md' and '#quick-start' in link: absolute='../'*depth+'getting-started/'
+            if a.name=='a' and target=='README.md' and '#quick-start' in link: absolute='../'*depth+'get-started/'
             if a.name=='a' and target=='README.md' and '#supported-extensions' in link: absolute='../'*depth+'extensions/'
         a[key]=absolute
+        if a.name=='a' and urlsplit(absolute).scheme in ('http','https') and urlsplit(absolute).netloc != 'cnpg-extensions.github.io':
+            a['target']='_blank'
+            a['rel']='noopener noreferrer'
     # Source Markdown is content, not executable page code.
     import bleach
     tags={'a','p','div','span','h1','h2','h3','h4','h5','h6','ul','ol','li','pre','code','strong','em','blockquote','table','thead','tbody','tr','th','td','hr','br','img','details','summary','del','sup','sub'}
-    return bleach.clean(str(soup),tags=tags,attributes={'*':['id','class'],'a':['href','title'],'img':['src','alt','width','height'],'details':['open'],'span':['class','aria-hidden']},protocols=['http','https','mailto'],strip=True)
+    return bleach.clean(str(soup),tags=tags,attributes={'*':['id','class'],'a':['href','title','target','rel'],'img':['src','alt','width','height'],'details':['open'],'span':['class','aria-hidden']},protocols=['http','https','mailto'],strip=True)
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--refresh',action='store_true');parser.add_argument('--scan',action='store_true');parser.add_argument('--workers',type=int,default=4);parser.add_argument('--reuse-evidence',action='store_true',help='Local layout iteration only: reuse exact-digest evidence with original scan timestamps')
@@ -227,7 +230,7 @@ def main():
             recipes[(REPOS[src],name)]={'meta':meta,'readme':path.parent/'README.md','repo':REPOS[src],'commit':commits[src],'path':rel,
                 'build':meta.get('build_system') or ('PGRX' if rel.startswith('pgrx/') else 'Universe' if rel.startswith('universe/') else 'Debian')}
             routes[(REPOS[src],rel)]='extensions/'+name
-        routes[(REPOS[src],'README.md')]='getting-started'
+        routes[(REPOS[src],'README.md')]='get-started'
     jobs=[]
     for cat in sorted((CACHE/'artifacts/image-catalogs-extensions').glob('catalog-*.yaml')):
         document=yaml.safe_load(cat.read_text());distro=document['metadata']['labels']['images.cnpg.io/os']
@@ -297,7 +300,15 @@ def main():
         directory=content/name;directory.mkdir(exist_ok=True)
         fm={'title':entry['title'],'description':description,'extension':name,'layout':'extension'}
         body=readme_html(text,repo,recipe['commit'],recipe['path'],routes)
-        (directory/'index.md').write_text('---\n'+yaml.safe_dump(fm,sort_keys=False)+'---\n'+body+'\n')
+        (directory/'index.md').unlink(missing_ok=True)
+        fm['type'] = 'extensions'
+        (directory/'_index.md').write_text('---\n'+yaml.safe_dump(fm,sort_keys=False)+'---\n'+body+'\n')
+        for view in ('overview', 'documentation', 'dependencies', 'licenses'):
+            tab_directory = directory/view
+            tab_directory.mkdir(exist_ok=True)
+            tab_fm = dict(fm, view=view)
+            tab_body=readme_html(text,repo,recipe['commit'],recipe['path'],routes,depth=3)
+            (tab_directory/'index.md').write_text('---\n'+yaml.safe_dump(tab_fm,sort_keys=False)+'---\n'+tab_body+'\n')
     result={'generatedAt':NOW,'sourceRefreshedAt':source_refreshed_at,'commits':commits,'count':len(entries),'extensions':entries,'database':database}
     (ROOT/'data').mkdir(exist_ok=True)
     (ROOT/'data/generated.json').write_text(json.dumps(result))
@@ -307,7 +318,7 @@ def main():
     readme=(CACHE/'source/README.md').read_text()
     requirements='## Requirements'+readme.split('## Requirements',1)[1].split('\n---',1)[0]
     quick=readme.split('## Quick start',1)[1].split('\n## Supported Extensions',1)[0].strip().rstrip('-\n')
-    (ROOT/'content/getting-started.md').write_text('---\ntitle: Get started\ndescription: Configure alerts, install the catalog, and enable extensions in your databases.\n---\n'+
+    (ROOT/'content/getting-started.md').write_text('---\ntitle: Get started\nurl: /get-started/\naliases: [/getting-started/]\ndescription: Configure alerts, install the catalog, and enable extensions in your databases.\n---\n'+
         getting_started(readme_html(requirements+'\n\n'+quick,REPOS['source'],commits['source'],'README.md',routes,depth=1)))
     subprocess.run([sys.executable, str(ROOT/'scripts/overview_metadata.py')], check=True)
     print(f'Generated {len(entries)} extension pages from {len(images)} catalog images',flush=True)

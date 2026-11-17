@@ -15,7 +15,7 @@
 {{ if and $additional (ne $license (delimit $files "; ")) }}<div class="license-additional"><span>From files:</span> {{ delimit $additional "; " }}</div>{{ end }}
 </div>{{ else }}<span class="advisory-unlinked">Not recorded</span>{{ end }}</td><td>
 {{ $indicator := "Unknown" }}{{ if gt $count 0 }}{{ $indicator = "Yes" }}{{ else if $advisories.complete }}{{ $indicator = "No" }}{{ end }}
-{{ with .advisoryURL }}<a class="advisory-link{{ if gt $count 0 }} has-matches{{ end }}" href="{{ . }}" aria-label="{{ $package.name }}: advisories {{ $indicator }}. View package details" title="Check this package's advisories. External results may differ.">{{ $indicator }} ↗</a>{{ else }}<span class="advisory-unlinked">{{ $indicator }}</span>{{ end }}
+{{ with .advisoryURL }}<a class="advisory-link{{ if gt $count 0 }} has-matches{{ end }}" href="{{ . }}" target="_blank" rel="noopener noreferrer" aria-label="{{ $package.name }}: advisories {{ $indicator }}. View package details" title="Check this package's advisories. External results may differ.">{{ $indicator }} ↗</a>{{ else }}<span class="advisory-unlinked">{{ $indicator }}</span>{{ end }}
 </td></tr>{{ end }}</tbody></table></div>
 <p class="dependency-no-results" hidden>No packages match these filters. Try a different name or license, or clear the filters.</p>
 

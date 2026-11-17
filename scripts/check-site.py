@@ -29,6 +29,13 @@ for page in root.rglob('*.html'):
         checked+=1
 for e in data['extensions']:
     assert (root/'extensions'/e['name']/'index.html').exists(),e['name']
+    for view in ('overview', 'documentation', 'dependencies', 'licenses'):
+        tab_page = root/'extensions'/e['name']/view/'index.html'
+        assert tab_page.exists(), tab_page
+        tab_soup = BeautifulSoup(tab_page.read_text(), 'html.parser')
+        visible = tab_soup.select('.detail-view:not([hidden])')
+        assert [section['id'] for section in visible] == [view], tab_page
+
     for v in e['variants']:
         for p in v['platforms']:
             if p['status']=='available':

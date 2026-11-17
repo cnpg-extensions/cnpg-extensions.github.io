@@ -46,13 +46,13 @@ body[data-theme] .hero .second-line{margin-top:.2em}
 .setup-step + .setup-step{border-top:1px solid var(--line)}
 .setup-heading{display:flex;align-items:flex-start;gap:14px;padding:22px 24px}
 .setup-number{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--accent);padding-top:3px}
-.setup-heading h2{font-size:21px;letter-spacing:-.025em}
+.setup-heading h3{font-size:21px;letter-spacing:-.025em}
 .setup-heading p{font-size:15px;color:var(--muted);margin-top:8px;line-height:1.6}
 .setup-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.8}
 .setup-footer{padding:16px 24px;font-size:13px;color:var(--muted)}
 .setup-footer a{display:inline-block;margin-top:8px;font-weight:600}
 .setup-footer .setup-note{margin-top:12px;font-size:12px}
-@media(max-width:700px){.setup-heading{padding:20px 14px;gap:10px}.setup-heading h2{font-size:20px}.setup-heading p{font-size:14px}.setup-preview pre{font-size:12px}.setup-footer{padding:16px 14px}}
+@media(max-width:700px){.setup-heading{padding:20px 14px;gap:10px}.setup-heading h3{font-size:20px}.setup-heading p{font-size:14px}.setup-preview pre{font-size:12px}.setup-footer{padding:16px 14px}}
 
 /* Bold capitals need their natural spacing to keep adjacent strokes distinct. */
 .hero h1 strong{letter-spacing:normal}

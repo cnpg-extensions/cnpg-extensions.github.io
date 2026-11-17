@@ -2,16 +2,17 @@
 {{ $entry := index (where hugo.Data.generated.extensions "name" .Params.extension) 0 }}
 <div class="extension-shell">
 {{ partial "extension-sidebar.html" . }}
-<article class="extension-detail extension-redesign">
+<article class="extension-detail extension-redesign" data-default-view="{{ .Params.view | default "documentation" }}">
 <a class="back-link" href="{{ `extensions/` | relURL }}">← Explore extensions</a>
 <header class="extension-heading"><div><h1>{{ .Title }}</h1></div><a class="source-link" href="{{ $entry.source }}" target="_blank" rel="noopener">Source README ↗</a></header>
-<nav class="detail-view-nav" aria-label="Extension views"><a href="#overview" data-detail-view="overview">Overview</a><a href="#readme" data-detail-view="readme">Documentation</a><a href="#image-evidence" data-detail-view="image-evidence">Dependencies</a><a href="#image-licenses" data-detail-view="image-licenses">Licenses</a></nav>
+<nav class="detail-view-nav" aria-label="Extension views"><a href="{{ printf "extensions/%s/overview/" .Params.extension | relURL }}" data-detail-view="overview">Overview</a><a href="{{ printf "extensions/%s/documentation/" .Params.extension | relURL }}" data-detail-view="documentation">Documentation</a><a href="{{ printf "extensions/%s/dependencies/" .Params.extension | relURL }}" data-detail-view="dependencies">Dependencies</a><a href="{{ printf "extensions/%s/licenses/" .Params.extension | relURL }}" data-detail-view="licenses">Licenses</a></nav>
 <div class="inventory-controls" hidden><label>Image<select id="image-choice">{{ range $v := $entry.variants }}{{ $variant := printf "%s-pg%v" .distro .pg }}{{ range .platforms }}<option value="{{ $variant }}-{{ .architecture }}" data-variant="{{ $variant }}" data-architecture="{{ .architecture }}">{{ $v.distro | title }} · PG {{ $v.pg }} · {{ .architecture }}</option>{{ else }}<option value="{{ $variant }}-unavailable" data-variant="{{ $variant }}" data-architecture="unavailable">{{ $v.distro | title }} · PG {{ $v.pg }} · Unavailable</option>{{ end }}{{ end }}</select></label></div>
-<section id="readme" class="detail-view"><div class="readme-layout"><aside class="readme-nav" hidden><details open><summary>On this page</summary><nav aria-label="Documentation contents"></nav></details></aside><div class="prose readme-content">{{ .Content }}</div></div></section>
+<section id="documentation" class="detail-view" {{ if ne (.Params.view | default "documentation") "documentation" }}hidden{{ end }}><span id="readme" aria-hidden="true"></span><div class="readme-layout"><aside class="readme-nav" hidden><details open><summary>On this page</summary><nav aria-label="Documentation contents"></nav></details></aside><div class="prose readme-content">{{ .Content }}</div></div></section>
 
-{{ range $view := slice "overview" "image-evidence" "image-licenses" }}
-<section id="{{ $view }}" class="detail-view inventory-view">
-{{ if eq $view "image-evidence" }}
+{{ range $view := slice "overview" "dependencies" "licenses" }}
+<section id="{{ $view }}" class="detail-view inventory-view" {{ if ne ($.Params.view | default "documentation") $view }}hidden{{ end }}>
+{{ if eq $view "dependencies" }}<span id="image-evidence" aria-hidden="true"></span>{{ else if eq $view "licenses" }}<span id="image-licenses" aria-hidden="true"></span>{{ end }}
+{{ if eq $view "dependencies" }}
 <form class="dependency-filters" role="search" aria-label="Filter dependencies" hidden>
 <label>Package name<input type="search" name="package" placeholder="e.g. tokio" autocomplete="off"></label>
 <label>License<input type="search" name="license" placeholder="e.g. MIT, Apache, LicenseRef" autocomplete="off"></label>
@@ -26,7 +27,7 @@
 {{ $upstream := hasPrefix $v.reference "ghcr.io/cloudnative-pg/" }}
 {{ $context := dict "entry" $entry "variant" $v "platform" $platform "upstream" $upstream }}
 {{ if eq $view "overview" }}{{ partial "extension-overview.html" $context }}
-{{ else if eq $view "image-licenses" }}{{ partial "extension-licenses.html" $context }}
+{{ else if eq $view "licenses" }}{{ partial "extension-licenses.html" $context }}
 {{ else }}
 <div class="inventory-intro"><h2>Dependencies</h2><p>Packages shipped in this image, including the extension itself.</p></div>
 {{ if $upstream }}<p class="status-note">This image is published by CloudNativePG. A reliable SBOM inventory of its shipped dependencies is not available yet.</p>

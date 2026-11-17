@@ -177,10 +177,10 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
 .code-with-copy .copy-code:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* A single control cycles System, Light, and Dark; the icon shows the preference. */
-.theme-switcher{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:44px;height:44px;padding:0;border:1px solid var(--control-border);border-radius:50%;background:var(--surface);color:var(--ink)}
+.theme-switcher,.nav-tools .github-link{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:44px;height:44px;padding:0;border:1px solid var(--control-border);border-radius:50%;background:var(--surface);color:var(--ink)}
 .theme-switcher [data-theme-icon]{display:flex}
-.theme-switcher:hover{color:var(--accent);border-color:var(--accent)}
-.theme-switcher:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.theme-switcher:hover,.nav-tools .github-link:hover{color:var(--accent);border-color:var(--accent)}
+.theme-switcher:focus-visible,.nav-tools .github-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 
 /* Extension overview: a concise summary with supporting metadata alongside. */
 .extension-redesign .detail-view-nav{gap:28px;margin-bottom:24px}
@@ -306,3 +306,25 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
 .overview-top-facts .extension-setup{border:0;padding:0;background:transparent}
 .overview-top-facts .extension-setup dl{grid-template-columns:max-content minmax(0,1fr);gap:7px 14px;margin:12px 0 0}
 .extension-setup .setup-parameters{background:transparent}
+
+.get-started-section{margin-top:36px}
+.setup-title{letter-spacing:.13em;margin-bottom:20px}
+body[data-theme] .get-started-section .technical{margin-top:0}
+
+.github-link,.maintainer-link{display:inline-flex;align-items:center;gap:7px}
+.github-icon{flex-shrink:0;width:20px;height:20px}
+.maintainer-bio .link-icon{width:20px;height:20px;border-radius:0;object-fit:contain}
+.catalog-request{margin-bottom:20px;font-size:15px}
+
+.maintainer-role,.maintainer-links{display:flex;align-items:center;gap:12px}
+.maintainer-role{flex-wrap:wrap}
+.maintainer-links .maintainer-link{margin:0}
+
+.maintainer-name{display:flex;align-items:center;flex-wrap:wrap;gap:14px}
+
+/* Place the mobile menu to the right of GitHub. */
+.nav-tools .theme-switcher{order:0}
+.nav-tools .mobile-menu{order:2}
+.nav-tools .github-link{order:1}
+
+.setup-heading .setup-subtitle{margin-top:6px;font-size:22px;font-weight:700;color:var(--accent)}

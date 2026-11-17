@@ -18,8 +18,8 @@
 <header class="site-header"><div class="nav-inner">
 <a class="brand" href="{{ `` | relURL }}" aria-label="CNPG Extensions home"><img src="{{ `assets/cnpg-extensions.png` | relURL }}" alt="CNPG Extensions" width="2048" height="365"></a>
 <nav class="desktop-nav" aria-label="Main navigation">{{ partial "navigation.html" . }}</nav>
-<div class="nav-tools">{{ partial "theme-switcher.html" . }}<button class="mobile-menu" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Toggle navigation menu">Menu <span aria-hidden="true">☰</span></button></div>
+<div class="nav-tools">{{ partial "theme-switcher.html" . }}<a class="github-link" aria-label="GitHub" title="GitHub" href="https://github.com/cnpg-extensions" target="_blank" rel="noopener noreferrer">{{ partial "github-icon.html" . }}</a><button class="mobile-menu" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Toggle navigation menu">Menu <span aria-hidden="true">☰</span></button></div>
 </div><nav id="mobile-nav" aria-label="Mobile navigation" hidden>{{ partial "navigation.html" . }}</nav></header>
 <main id="main">{{ block "main" . }}{{ end }}</main>
-<footer class="wrap site-footer"><span>Open source. Built for CloudNativePG.</span><span><a href="{{ `security/` | relURL }}">Security &amp; transparency</a> · <a href="https://github.com/cnpg-extensions">GitHub ↗</a></span></footer>
+<footer class="wrap site-footer"><span>Open source. <a href="https://cloudnative-pg.io/" target="_blank" rel="noopener noreferrer">Built for CloudNativePG ↗</a>.</span><span><a href="{{ `security/` | relURL }}">Security &amp; transparency</a> · <a href="https://github.com/cnpg-extensions" target="_blank" rel="noopener noreferrer">GitHub ↗</a></span></footer>
 </body></html>
