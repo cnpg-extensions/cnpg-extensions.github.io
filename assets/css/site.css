@@ -15,6 +15,7 @@
 
 /* Section titles stand on their own without decorative uppercase labels. */
 body[data-theme=hextra] .hero h1,.page-heading h1,.extension-heading h1,.maintainer h2,.pillars h3{margin-top:0}
+body[data-theme=hextra] .hero .eyebrow + h1{margin-top:24px}
 
 .maintainer{grid-template-columns:1fr}.maintainer-bio{max-width:850px}
 
