@@ -3,6 +3,12 @@ const media = matchMedia('(prefers-color-scheme: dark)');
 let preference = 'system';
 try { preference = localStorage.getItem('cnpg-mode') || 'system'; } catch {}
 if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+const favicon = document.getElementById('site-favicon');
+function applyFavicon() {
+ if (favicon) favicon.href = media.matches ? favicon.dataset.dark : favicon.dataset.light;
+}
+applyFavicon();
+media.addEventListener('change', applyFavicon);
 const themeButton = document.querySelector('.theme-switcher');
 const themeModes = ['system', 'light', 'dark'];
 function applyMode() {
