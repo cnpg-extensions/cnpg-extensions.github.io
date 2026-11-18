@@ -84,7 +84,7 @@ python scripts/version_history.py --all
   with `cloudnative-pg/postgres-extensions-containers` for upstream-published images.
 - Current versions: published OCI annotations or config labels, **not** a recipe
   version that may not have shipped yet. Cards prefer the highest published PostgreSQL major, then Trixie within that
-  major. Detail pages select a PostgreSQL major, distribution, and architecture;
+  major, with stable/oldstable before testing/unstable. Detail pages select a PostgreSQL major, distribution, and architecture;
   extension and SQL versions come from that selected image and may differ by major. Image details
   link to the catalog image’s GHCR package page for published versions.
 - Package versions and licenses: digest-checked BuildKit SPDX attestations, per

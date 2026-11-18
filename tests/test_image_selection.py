@@ -64,6 +64,14 @@ def build_fixture(site):
 
 
 class VariantOrderingTests(unittest.TestCase):
+    def test_stable_precedes_testing_and_unstable_within_each_major(self):
+        distros = ['unstable', 'sid', 'testing', 'oldstable', 'bookworm', 'stable', 'trixie']
+        images = [{'pg': pg, 'distro': distro} for pg in (18, 19) for distro in distros]
+        ordered = sorted(images, key=variant_order)
+        expected = ['stable', 'trixie', 'bookworm', 'oldstable', 'testing', 'sid', 'unstable']
+        self.assertEqual([(i['pg'], i['distro']) for i in ordered],
+                         [(pg, distro) for pg in (19, 18) for distro in expected])
+
     def test_major_precedes_distribution_even_when_new_major_lacks_trixie(self):
         images = [{'pg': 18, 'distro': 'trixie', 'version': 'old'},
                   {'pg': 19, 'distro': 'bookworm', 'version': 'new'},

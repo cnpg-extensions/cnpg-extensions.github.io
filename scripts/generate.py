@@ -240,8 +240,11 @@ def readme_html(text, repo, commit, path, routes, depth=2):
     return bleach.clean(str(soup),tags=tags,attributes={'*':['id','class'],'a':['href','title','target','rel'],'img':['src','alt','width','height'],'details':['open'],'span':['class','aria-hidden']},protocols=['http','https','mailto'],strip=True)
 
 def variant_order(image):
-    """Prefer the newest PG major, then Trixie, with deterministic distro order."""
-    return -int(image['pg']), image['distro'] != 'trixie', image['distro']
+    """Prefer newest PG, then stable/oldstable Debian before testing/unstable."""
+    distro = image['distro']
+    rank = {'trixie': 0, 'stable': 0, 'bookworm': 1, 'oldstable': 1,
+            'sid': 3, 'unstable': 3}.get(distro, 2)
+    return -int(image['pg']), rank, distro
 
 
 def main():
