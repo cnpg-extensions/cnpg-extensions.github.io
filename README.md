@@ -130,3 +130,59 @@ from an inspected image with no notice files.
 Generation requires an accessible Docker daemon (provided by the Ubuntu GitHub
 Actions runner). Local notice results are cached by immutable platform digest in
 `.cache/image-notices-v1`; new image digests are extracted on subsequent builds.
+
+## Weekly upstream Scorecard reports
+
+`scorecards.yml` runs every Monday at 08:17 UTC and supports manual dispatch.
+Both triggers run fresh scans with the pinned Scorecard version, using the current published
+catalog and reviewed upstream mappings in `data/scorecard-repositories.json`.
+Only extensions explicitly listed in `data/scorecard-local-scans.json` are scanned.
+The initial list contains the 76 supported-host extensions without an OpenSSF API
+report in the November 17, 2026 audit, including seven with older deps.dev reports.
+The 26 entries with OpenSSF reports and Salsa-hosted debversion are excluded.
+The list does not change when OpenSSF coverage changes: add/remove entries manually.
+New catalog entries are not automatically added. The full repository mapping remains
+available for looking up externally published reports.
+The scanner never builds upstream code. See the user-runnable command on the
+Security page before changing the automated command.
+
+Each run uploads `scorecard-results` with **21-day retention**. It contains an
+`index.json` with catalog revision, producer, run, scope and per-extension status,
+plus unmodified JSON reports keyed by repository URL hash. Scores are not adjusted.
+There is no release asset or automatic deletion of previous runs. Failed checks
+remain in the raw report; repository failures and unsupported hosts are explicit
+in the index. A run with no reports fails but uploads its diagnostic index.
+
+For testing, dispatch with `extensions=http,hypopg`; these artifacts are named
+`scorecard-results-test`, so a website consumer cannot mistake a subset for a complete local-list
+snapshot. Consumers should select the latest successful default-branch run's
+non-expired `scorecard-results` artifact and retain original report dates.
+This workflow produces artifacts only; website consumption/rendering is separate.
+
+The built-in GitHub token is used by default. Optional `SCORECARD_TOKEN` can supply
+additional API capacity; `SCORECARD_GITLAB_TOKEN` enables GitLab.com scans. Without
+it GitLab entries are unavailable. Salsa is explicitly unsupported by this workflow.
+Concurrency is limited to two scans, with a five-minute timeout per repository.
+
+The ardentperf-labs full-catalog test produced 83 reports with the built-in token.
+Some repositories' classic branch-protection settings cause Scorecard to return
+an error with this token; a generic higher-quota token does not necessarily grant
+access to those settings. Organization IP allow lists can also prevent scans.
+Valid partial JSON reports are retained even on a nonzero exit, with the exit code,
+inconclusive check count and sanitized diagnostics. Invalid or absent reports
+remain unavailable. The workflow prints per-repository progress as scans finish.
+
+### Scorecard dependency updates
+
+`renovate.json` limits automated dependency updates to
+`.github/workflows/scorecards.yml`: GitHub Actions, Python, PyYAML, and the
+Scorecard release binary. Renovate checks on the first day of each month between 00:00 and
+07:00 UTC and batches all available updates, including major versions, into one
+PR for manual review. Only one regular update PR can be open at a time; existing
+update branches are refreshed during the monthly window. The Scorecard version is
+defined once in `SCORECARD_VERSION`; the release tag, archive name, and checksum
+selection all use that value. Release checksum verification remains required.
+
+To activate updates after merging, enable the hosted [Renovate GitHub App](https://github.com/apps/renovate)
+for this repository. No workflow token or additional repository secret is needed.
+Existing website dependencies are outside this configuration's scope.

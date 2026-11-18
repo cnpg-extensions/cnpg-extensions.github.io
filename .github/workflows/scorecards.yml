@@ -1,0 +1,55 @@
+name: Scan upstream OpenSSF Scorecards
+on:
+  schedule:
+    - cron: '17 8 * * 1'
+  workflow_dispatch:
+    inputs:
+      extensions:
+        description: 'Optional comma-separated names from local scan list (empty scans entire list)'
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: scorecards-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install PyYAML==6.0.2
+      - name: Download pinned Scorecard and verify checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # renovate: datasource=github-releases depName=ossf/scorecard
+          SCORECARD_VERSION: "5.6.0"
+        run: |
+          mkdir -p .tools/scorecard-download
+          gh release download "v${SCORECARD_VERSION}" --repo ossf/scorecard --dir .tools/scorecard-download \
+            --pattern "scorecard_${SCORECARD_VERSION}_linux_amd64.tar.gz" --pattern scorecard_checksums.txt
+          cd .tools/scorecard-download
+          grep -F " scorecard_${SCORECARD_VERSION}_linux_amd64.tar.gz" scorecard_checksums.txt | sha256sum --check --strict
+          tar -xzf "scorecard_${SCORECARD_VERSION}_linux_amd64.tar.gz" scorecard
+          chmod +x scorecard
+          echo "$PWD" >> "$GITHUB_PATH"
+      - name: Fetch current published catalog
+        run: git clone --depth 1 https://github.com/cnpg-extensions/artifacts.git .cache/scorecard-catalog
+      - name: Scan upstream repositories
+        env:
+          GITHUB_AUTH_TOKEN: ${{ secrets.SCORECARD_TOKEN || github.token }}
+          GITLAB_AUTH_TOKEN: ${{ secrets.SCORECARD_GITLAB_TOKEN }}
+          EXTENSIONS: ${{ inputs.extensions }}
+        run: python scripts/scan-scorecards.py --catalog-dir .cache/scorecard-catalog/image-catalogs-extensions --extensions "$EXTENSIONS"
+      - name: Preserve reports
+        if: ${{ always() && hashFiles('scorecard-results/index.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.extensions && 'scorecard-results-test' || 'scorecard-results' }}
+          path: scorecard-results/
+          retention-days: 21
+          if-no-files-found: error

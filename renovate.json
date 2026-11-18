@@ -1,0 +1,56 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "enabledManagers": [
+    "github-actions",
+    "custom.regex"
+  ],
+  "includePaths": [
+    ".github/workflows/scorecards.yml"
+  ],
+  "schedule": [
+    "* 0-6 1 * *"
+  ],
+  "timezone": "Etc/UTC",
+  "automerge": false,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/scorecards\\.yml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+SCORECARD_VERSION: \"(?<currentValue>[^\"]+)\""
+      ],
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/scorecards\\.yml$/"
+      ],
+      "matchStrings": [
+        "pip install (?<depName>PyYAML)==(?<currentValue>[0-9.]+)"
+      ],
+      "datasourceTemplate": "pypi",
+      "versioningTemplate": "pep440"
+    }
+  ],
+  "prConcurrentLimit": 1,
+  "updateNotScheduled": false,
+  "packageRules": [
+    {
+      "description": "Batch all Scorecard workflow dependencies into one monthly update PR, including major updates.",
+      "matchPackageNames": [
+        "*"
+      ],
+      "groupName": "Scorecard workflow dependencies",
+      "groupSlug": "scorecard-workflow-dependencies",
+      "separateMajorMinor": false,
+      "separateMinorPatch": false,
+      "separateMultipleMajor": false
+    }
+  ]
+}

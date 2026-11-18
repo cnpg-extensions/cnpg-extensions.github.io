@@ -202,3 +202,17 @@ Keep the `.spdx.json` filename so OSV-Scanner recognizes the format. It queries 
 Catalog refreshes run daily and after successful extension builds. Eligible dependency updates are automated after required checks pass; major updates and cases requiring SQL-version review remain manual. [Read the current update policy](https://github.com/cnpg-extensions/postgres-extensions-containers#automated-dependency-updates).
 
 Your CronJob initiates catalog updates at the start of your maintenance window. It does not impose a rollout end time. Catalog-referencing clusters adopt changed image references; SQL extension upgrades can still need an explicit version change or `ALTER EXTENSION … UPDATE`. [Set up monitoring before scheduling updates](../get-started/).
+
+## Upstream OpenSSF Scorecard scans
+
+To reproduce a repository scan with Scorecard v5.6.0, install the release binary
+from [OpenSSF](https://github.com/ossf/scorecard/releases/tag/v5.6.0), verify its
+release checksum, and supply a GitHub API token through `GITHUB_AUTH_TOKEN`:
+
+```sh
+scorecard --repo=https://github.com/pgvector/pgvector --show-details --format=json > pgvector-scorecard.json
+```
+
+These checks inspect upstream repository practices, not the installed image.
+The original scores and check details are preserved. GitLab scans use
+`GITLAB_AUTH_TOKEN`; inaccessible checks remain inconclusive.
