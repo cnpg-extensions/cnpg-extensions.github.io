@@ -3,11 +3,13 @@
 import argparse
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import hashlib
 import json
 import re
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlsplit
 from generate import ROOT, Registry, check_digest, image_package_url
@@ -112,10 +114,87 @@ def add_image_links(builds):
         raise ValueError(f'Could not verify exact GitHub image links for {len(remaining)} builds')
 
 
-def refresh_repository(registry, previous, current_digests=None, full_refresh=False):
+def recent_builds(repository, cached):
+    """Discover newest package versions, stopping after a fully cached build page.
+
+    This is a website-ordering optimization, not an OCI ordering guarantee.
+    A periodic registry reconciliation repairs older changes and deletions.
+    """
+    package = image_package_url('ghcr.io/' + repository + ':unused')
+    prefix = urlsplit(package.replace('/package/', '/') + '/versions').path
+    url = 'https://github.com' + prefix + '?filters%5Bversion_type%5D=tagged'
+    found = {}
+    visited = set()
+    with requests.Session() as session:
+        session.mount('https://', HTTPAdapter(max_retries=Retry(
+            total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])))
+        while url:
+            parsed = urlsplit(url)
+            if parsed.scheme != 'https' or parsed.netloc != 'github.com' or parsed.path != prefix or url in visited:
+                raise ValueError('Unexpected package pagination URL')
+            visited.add(url)
+            response = session.get(url, timeout=60)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            page = {}
+            for anchor in soup.select('a[href]'):
+                tag = anchor.get_text(strip=True)
+                if not BUILD_TAG.fullmatch(tag):
+                    continue
+                link = urljoin('https://github.com', anchor['href'])
+                target = urlsplit(link)
+                if target.netloc != 'github.com' or not re.fullmatch(
+                        re.escape(prefix.removesuffix('/versions')) + r'/[0-9]+', target.path):
+                    continue
+                row = anchor.find_parent('div', class_='flex-column')
+                digest = row.find('clipboard-copy') if row else None
+                digest = digest.get('value', '') if digest else ''
+                if not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
+                    raise ValueError('Package build is missing its digest')
+                page[tag] = {'digest': digest, 'imageURL': link}
+            found.update(page)
+            if page and all(tag in cached and cached[tag].get('imageURL')
+                            and cached[tag]['reference'].split('@')[1] == item['digest']
+                            for tag, item in page.items()):
+                break
+            next_link = soup.select_one('a.next_page[href]')
+            url = urljoin('https://github.com', next_link['href']) if next_link else None
+        if not found:
+            raise ValueError('No timestamped builds found on package pages')
+    print(f'{repository}: checked {len(visited)} package pages', flush=True)
+    return found
+
+
+def refresh_recent_repository(registry, cached, current_digests):
+    discovered = recent_builds(registry.repo, cached)
+    results = dict(cached)
+    pending = set(discovered) | set(current_digests)
+    missing = [tag for tag in sorted(pending)
+               if tag not in cached or not cached[tag].get('imageURL')
+               or cached[tag]['reference'].split('@')[1] != current_digests.get(
+                   tag, discovered.get(tag, {}).get('digest'))]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        fetched = list(pool.map(lambda tag: read_build(registry, tag), missing))
+    unresolved = []
+    for build in fetched:
+        item = discovered.get(build['tag'])
+        if item and item['digest'] == build['reference'].split('@')[1]:
+            build['imageURL'] = item['imageURL']
+        else:
+            unresolved.append(build)
+        results[build['tag']] = build
+    if unresolved:
+        add_image_links(unresolved)
+    print(f'{registry.repo}: reused {len(results) - len(fetched)}, fetched {len(fetched)}; incremental', flush=True)
+    return list(results.values())
+
+
+def refresh_repository(registry, previous, current_digests=None, full_refresh=False, incremental=False):
     current_digests = current_digests or {}
     cached = {b['tag']: b for b in previous
               if b['reference'].split('@')[0].rsplit(':', 1)[0] == 'ghcr.io/' + registry.repo}
+    if incremental and cached and not full_refresh:
+        return refresh_recent_repository(registry, cached, current_digests)
     tags = build_tags(registry)
     reused = []
     missing = []
@@ -143,17 +222,23 @@ def refresh_entry(entry, full_refresh=False, history_path=None):
     path = Path(history_path) if history_path else ROOT / '.cache/version-history/history.json'
     path.parent.mkdir(parents=True, exist_ok=True)
     history = json.loads(path.read_text()) if path.exists() else {}
-    previous = history.get(entry['name'], {}).get('builds', [])
+    saved = history.get(entry['name'], {})
+    previous = saved.get('builds', [])
+    now = datetime.now(timezone.utc)
+    reconciled = saved.get('reconciledAt') or saved.get('fetchedAt')
+    incremental = bool(previous and reconciled and not full_refresh
+                       and now - datetime.fromisoformat(reconciled) < timedelta(days=7))
     builds = []
     for repository in sorted(repositories):
         registry = Registry(repository + '@sha256:unused')
         current = {v['reference'].split('@')[0].rsplit(':', 1)[1]: v['reference'].split('@')[1]
                    for v in entry['variants'] if v['reference'].startswith(repository + ':')}
-        builds.extend(refresh_repository(registry, previous, current, full_refresh))
+        builds.extend(refresh_repository(registry, previous, current, full_refresh, incremental=incremental))
     # Mutable aliases and attestation tags are excluded; deduplicate image digests.
     builds = list({b['reference'].split('@')[1]: b for b in builds}.values())
     builds.sort(key=lambda b: b['annotations'].get('org.opencontainers.image.created', ''), reverse=True)
-    record = {'fetchedAt': datetime.now(timezone.utc).isoformat(), 'builds': builds}
+    record = {'fetchedAt': now.isoformat(),
+              'reconciledAt': reconciled if incremental else now.isoformat(), 'builds': builds}
     validate({entry['name']: record})
     history[entry['name']] = record
     temporary = path.with_suffix('.tmp')

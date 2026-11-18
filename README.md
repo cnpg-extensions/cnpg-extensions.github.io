@@ -34,9 +34,21 @@ generator, and uploads the resulting assets again with **seven-day retention**.
 There is no separate history workflow or snapshot publication step.
 
 Saved assets include digest-addressed OCI metadata/SBOMs, extracted license notices,
-and version-history metadata with verified GHCR links. History refreshes still list
-tags to discover new builds and remove deleted tags; unchanged build records avoid
-manifest and GitHub HTML requests. Advisory databases refresh and scans rerun each
+and version-history metadata with verified GHCR links. With cached history, refreshes
+read GitHub package pages newest-first until a complete page of timestamped build
+tags and digests matches the cache. Newly discovered builds get their exact GHCR
+links from that same page; only missing or changed builds need manifest requests.
+Current catalog digest changes are checked even outside the discovered pages.
+
+Initial loads and weekly reconciliation use the full registry tag listing, including
+to discover older additions and remove deleted tags. Incremental runs retain older
+cached records, so deletions can remain visible until reconciliation. Explicit full
+refreshes also refetch known manifests. Timestamped tags are otherwise treated as
+immutable. GitHub page ordering is an observed website behavior, not an OCI API
+contract; malformed pages and failed retrievals fail the build. History updates
+remain serial, preserving completed extensions without concurrent cache writes.
+
+Advisory databases refresh and scans rerun each
 build so new advisories are detected for unchanged images. Source checkouts refresh
 normally. Changes to the notice extractor invalidate the saved artifact name.
 
@@ -55,7 +67,7 @@ Neither option reuses prior vulnerability scan results.
 For a history-only local refresh using the same retrieval code:
 
 ```sh
-python scripts/preview-versions.py --all
+python scripts/version_history.py --all
 ```
 
 ## Sources of truth
