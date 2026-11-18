@@ -88,8 +88,14 @@ if (detail) {
  function showView(id, updateURL = false) {
   tabs.forEach(tab => {const selected = tab.dataset.detailView === id;tab.setAttribute('aria-selected',String(selected));tab.tabIndex = selected ? 0 : -1;});
   views.forEach(view => view.hidden = view.id !== id);
-  detail.querySelector('.inventory-controls').hidden = id === 'documentation';
-  if(updateURL) { const url = new URL(location.href);url.pathname = new URL(tabs.find(tab => tab.dataset.detailView === id).href).pathname;url.hash = '';history.pushState(null,'',url); }
+  const selectedTab = tabs.find(tab => tab.dataset.detailView === id);
+  if (selectedTab) {
+   const tabBounds = selectedTab.getBoundingClientRect(), navBounds = nav.getBoundingClientRect();
+   if (tabBounds.left < navBounds.left) nav.scrollLeft -= navBounds.left - tabBounds.left;
+   else if (tabBounds.right > navBounds.right) nav.scrollLeft += tabBounds.right - navBounds.right;
+  }
+  detail.querySelector('.inventory-controls').hidden = id === 'documentation' || id === 'versions';
+  if(updateURL) { const url = new URL(location.href);url.pathname = new URL(tabs.find(tab => tab.dataset.detailView === id).href).pathname;url.hash = new URL(tabs.find(tab => tab.dataset.detailView === id).href).hash;history.pushState(null,'',url); }
  }
  tabs.forEach((tab,i) => {
   tab.addEventListener('click',e=>{e.preventDefault();showView(tab.dataset.detailView,true);});
@@ -105,7 +111,7 @@ if (detail) {
   if (views.some(view => view.id === fragment) || legacyViews.has(fragment)) {
    const url = new URL(location.href);
    url.pathname = new URL(tabs.find(tab => tab.dataset.detailView === id).href).pathname;
-   url.hash = '';
+   url.hash = new URL(tabs.find(tab => tab.dataset.detailView === id).href).hash;
    history.replaceState(null, '', url);
   }
   showView(known ? id : detail.dataset.defaultView);

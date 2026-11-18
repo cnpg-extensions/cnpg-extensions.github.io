@@ -31,4 +31,4 @@
 </div></div>
 </div>
 </div>
-<section class="evidence-downloads image-details"><h3>Image details</h3><p class="image-reference"><code>{{ $v.reference }}</code></p><p>Platform digest: <code>{{ $p.digest }}</code></p><p><a href="{{ `security/` | relURL }}">Verify publisher signatures and inspect provenance →</a></p></section>
+<section class="evidence-downloads image-details"><h3>Image details</h3><p class="image-reference"><code>{{ $v.reference }}</code></p>{{ with $v.packageURL }}<p><a href="{{ . }}" target="_blank" rel="noopener noreferrer">Browse image versions on GHCR ↗</a></p>{{ end }}<p>Platform digest: <code>{{ $p.digest }}</code></p><p><a href="{{ `security/` | relURL }}">Verify publisher signatures and inspect provenance →</a></p></section>

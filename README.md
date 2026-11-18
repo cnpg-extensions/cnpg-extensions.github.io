@@ -19,7 +19,7 @@ python scripts/install-tools.py
 export PATH="$PWD/.tools:$PATH"
 python scripts/generate.py --refresh --scan
 hugo --minify
-hugo server --bind 0.0.0.0 --baseURL http://localhost:8766/ --port 8766 --appendPort=false
+hugo server --renderToMemory --bind 0.0.0.0 --baseURL http://localhost:8766/ --port 8766 --appendPort=false
 ```
 
 For a quicker content/layout iteration, omit `--scan` (results explicitly say
@@ -27,6 +27,36 @@ not run), or reuse the existing generated data and run just Hugo. Omitting
 `--refresh` uses the existing cached source checkouts. Production always refreshes
 sources and scans. Do not commit generated data or reports; reproduce them at build
 time. Full reports are available as downloads in the published site.
+
+The website generator retrieves assets directly and saves them for reuse. The nightly
+website workflow restores the previous `website-assets-v1-*` artifact, runs the
+generator, and uploads the resulting assets again with **seven-day retention**.
+There is no separate history workflow or snapshot publication step.
+
+Saved assets include digest-addressed OCI metadata/SBOMs, extracted license notices,
+and version-history metadata with verified GHCR links. History refreshes still list
+tags to discover new builds and remove deleted tags; unchanged build records avoid
+manifest and GitHub HTML requests. Advisory databases refresh and scans rerun each
+build so new advisories are detected for unchanged images. Source checkouts refresh
+normally. Changes to the notice extractor invalidate the saved artifact name.
+
+Each successfully retrieved asset is saved as it is processed, including when a
+later retrieval fails. The workflow retains those assets for the next attempt.
+History retrieval failures fail the build; Hugo's history data is replaced only
+after all extensions finish successfully. Failed builds never deploy.
+
+On a manual website run, **Ignore all saved website assets and retrieve them again**
+(`rebuild_cache`) bypasses restoration and repopulates all asset caches. Alternatively,
+set **Refetch assets for one extension** (`refresh_extension`, for example `semver`)
+to refresh that extension's OCI data, notices, and history while reusing the rest.
+Locally use `--rebuild-cache` or `--refresh-extension semver` with `generate.py`.
+Neither option reuses prior vulnerability scan results.
+
+For a history-only local refresh using the same retrieval code:
+
+```sh
+python scripts/preview-versions.py --all
+```
 
 ## Sources of truth
 
@@ -38,7 +68,8 @@ time. Full reports are available as downloads in the published site.
   with `cloudnative-pg/postgres-extensions-containers` for upstream-published images.
 - Current versions: published OCI annotations or config labels, **not** a recipe
   version that may not have shipped yet. Trixie is the card's preferred variant;
-  detail pages select one distribution and architecture at a time.
+  detail pages select one distribution and architecture at a time. Image details
+  link to the catalog image’s GHCR package page for published versions.
 - Package versions and licenses: digest-checked BuildKit SPDX attestations, per
   architecture. Preserve declared/concluded expressions, file licenses, and custom
   license definitions without inferring missing terms. Unknown stays unknown.
@@ -49,7 +80,9 @@ time. Full reports are available as downloads in the published site.
   Grype plus OSV for Cargo packages (identified by SPDX package URLs). It shows
   Yes if a relevant scanner finds advisories, No when all relevant scans complete
   without findings, and Unknown otherwise,
-  with exact-version Cargo links and Debian source-package tracker links derived
+  with exact-version crates.io links on Cargo package names and deps.dev links
+  on their advisory indicators (retaining its advisory and OpenSSF Scorecard context),
+  plus Debian source-package tracker links derived
   from SPDX package URLs. Missing scan results remain uncounted; external results
   may differ. No CVE table is rendered. Matches
   are not exploitability verdicts; scans exclude the separate PostgreSQL base image.
@@ -74,7 +107,11 @@ SBOM format; do not rewrite Debian package identities to accommodate a scanner.
 
 The generator currently updates Grype's database once, then runs the documented
 JSON SBOM scan for each platform with automatic database updates disabled so the
-batch uses the same database. OSV-Scanner runs the documented JSON command as a temporary
+batch uses the same database. OSV refreshes the Cargo and Debian database archives
+once per build, then scans all SBOMs with `--offline` against that fixed snapshot.
+Refresh failures produce unavailable OSV results; stale databases are not silently reused.
+Database hashes and refresh time are recorded with each scan in generated data.
+OSV-Scanner runs the documented JSON command as a temporary
 supplement for the missing direct RustSec feed tracked in
 [Grype #529](https://github.com/anchore/grype/issues/529); its findings contribute to a Yes/No/Unknown indicator alongside Grype.
 No combined numeric count is displayed because scanner findings can overlap.
@@ -83,7 +120,7 @@ Scanner failures remain explicit and do not become zero findings. Revisit the wo
 ## GitHub Pages
 
 In repository Settings → Pages, choose **GitHub Actions** as the source. The workflow
-builds on main, manually, and nightly at 10:30 UTC. Pull requests do not run this
+builds on pushes to main, manually, and nightly at 10:30 UTC. Pull requests do not run this
 workflow; run the local validation commands before pushing.
 Nightly builds fetch fresh source/catalog revisions and update Grype's database.
 GitHub's scheduled workflows can be delayed and may be disabled after repository
@@ -128,8 +165,16 @@ The original downloadable SBOM retains any embedded license records. Retrieval f
 from an inspected image with no notice files.
 
 Generation requires an accessible Docker daemon (provided by the Ubuntu GitHub
-Actions runner). Local notice results are cached by immutable platform digest in
-`.cache/image-notices-v1`; new image digests are extracted on subsequent builds.
+Actions runner). Successful notice results are cached by immutable platform digest
+in `.cache/image-notices-v1` and included in the seven-day website-assets artifact. Restored
+results skip Docker pull, create, and export entirely; new digests are extracted
+and failures are retried on the next build. Cache eviction can require extraction
+again. Changes to `scripts/image_notices.py` automatically invalidate the saved website-assets artifact.
+
+To force extraction for all current images, manually run the website workflow with
+**Ignore all saved website assets and retrieve them again** enabled, or specify one
+extension with `refresh_extension`. Fresh results are saved for subsequent builds.
+Locally, use `--rebuild-cache` or `--refresh-extension NAME`. Advisory scans still refresh normally.
 
 ## Weekly upstream Scorecard reports
 

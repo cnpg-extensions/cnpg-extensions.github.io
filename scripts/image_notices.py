@@ -30,9 +30,11 @@ def read_notices(archive):
     return sorted(notices, key=lambda item: item['path'])
 
 
-def container_notices(reference, architecture, digest, cache):
+def container_notices(reference, architecture, digest, cache, refresh=False):
     cache = Path(cache) / 'image-notices-v1'
     cached = cache / (digest.replace(':', '-') + '.json')
+    if refresh:
+        cached.unlink(missing_ok=True)
     if cached.exists():
         return json.loads(cached.read_text())
     # The platform manifest belongs to the catalog index resolved by the generator.

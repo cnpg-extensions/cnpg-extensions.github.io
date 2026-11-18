@@ -3,9 +3,9 @@
 <div class="extension-shell">
 {{ partial "extension-sidebar.html" . }}
 <article class="extension-detail extension-redesign" data-default-view="{{ .Params.view | default "documentation" }}">
-<a class="back-link" href="{{ `extensions/` | relURL }}">← Explore extensions</a>
+<a class="back-link" href="{{ `extensions/` | relURL }}">← Browse the extensions catalog</a>
 <header class="extension-heading"><div><h1>{{ .Title }}</h1></div><a class="source-link" href="{{ $entry.source }}" target="_blank" rel="noopener">Source README ↗</a></header>
-<nav class="detail-view-nav" aria-label="Extension views"><a href="{{ printf "extensions/%s/overview/" .Params.extension | relURL }}" data-detail-view="overview">Overview</a><a href="{{ printf "extensions/%s/documentation/" .Params.extension | relURL }}" data-detail-view="documentation">Documentation</a><a href="{{ printf "extensions/%s/dependencies/" .Params.extension | relURL }}" data-detail-view="dependencies">Dependencies</a><a href="{{ printf "extensions/%s/licenses/" .Params.extension | relURL }}" data-detail-view="licenses">Licenses</a></nav>
+<nav class="detail-view-nav" aria-label="Extension views"><a href="{{ printf "extensions/%s/overview/" .Params.extension | relURL }}" data-detail-view="overview">Overview</a><a href="{{ printf "extensions/%s/documentation/" .Params.extension | relURL }}" data-detail-view="documentation">Documentation</a><a href="{{ printf "extensions/%s/dependencies/" .Params.extension | relURL }}" data-detail-view="dependencies">Dependencies</a><a href="{{ printf "extensions/%s/licenses/" .Params.extension | relURL }}" data-detail-view="licenses">Licenses</a>{{ if or hugo.IsServer (index hugo.Data.version_history .Params.extension) }}<a href="{{ printf "extensions/%s/" .Params.extension | relURL }}#versions" data-detail-view="versions">Versions</a>{{ end }}</nav>
 <div class="inventory-controls" hidden><label>Image<select id="image-choice">{{ range $v := $entry.variants }}{{ $variant := printf "%s-pg%v" .distro .pg }}{{ range .platforms }}<option value="{{ $variant }}-{{ .architecture }}" data-variant="{{ $variant }}" data-architecture="{{ .architecture }}">{{ $v.distro | title }} · PG {{ $v.pg }} · {{ .architecture }}</option>{{ else }}<option value="{{ $variant }}-unavailable" data-variant="{{ $variant }}" data-architecture="unavailable">{{ $v.distro | title }} · PG {{ $v.pg }} · Unavailable</option>{{ end }}{{ end }}</select></label></div>
 <section id="documentation" class="detail-view" {{ if ne (.Params.view | default "documentation") "documentation" }}hidden{{ end }}><span id="readme" aria-hidden="true"></span><div class="readme-layout"><aside class="readme-nav" hidden><details open><summary>On this page</summary><nav aria-label="Documentation contents"></nav></details></aside><div class="prose readme-content">{{ .Content }}</div></div></section>
 
@@ -37,5 +37,6 @@
 {{ end }}
 </div>{{ end }}{{ end }}
 </section>{{ end }}
+{{ if or hugo.IsServer (index hugo.Data.version_history .Params.extension) }}<section id="versions" class="detail-view" hidden>{{ partial "extension-versions.html" $entry }}</section>{{ end }}
 <footer class="inventory-footer">{{ with hugo.Data.generated.sourceRefreshedAt }}Sources refreshed {{ time.Format "2 Jan 2006, 15:04 UTC" . }}.{{ else }}Source refresh time not recorded.{{ end }}</footer>
 </article></div>{{ end }}

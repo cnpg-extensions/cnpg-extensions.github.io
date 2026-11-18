@@ -4,7 +4,7 @@ import hcl2
 from hcl2.utils import SerializationOptions
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
-from generate import source_refresh_time, packages, check_digest, readme_html, scan, inspect_image, advisory_url
+from generate import source_refresh_time, packages, check_digest, readme_html, scan, inspect_image, advisory_url, image_package_url
 
 class MetadataTests(unittest.TestCase):
     def test_license_expressions_and_unknowns_are_not_lost(self):
@@ -37,6 +37,21 @@ class MetadataTests(unittest.TestCase):
     def test_advisory_links_use_exact_cargo_versions(self):
         p={'externalRefs':[{'referenceType':'purl','referenceLocator':'pkg:cargo/tokio@1.43.0'}]}
         self.assertEqual(advisory_url(p),'https://deps.dev/cargo/tokio/1.43.0')
+    def test_cargo_name_links_use_purl_identity_and_version(self):
+        p={'name':'display-name','versionInfo':'display-version','externalRefs':[{'referenceType':'purl','referenceLocator':'pkg:cargo/tokio@1.43.0'}]}
+        result=packages({'packages':[p]})[0]
+        self.assertEqual(result['packageURL'],'https://crates.io/crates/tokio/1.43.0')
+        self.assertEqual(result['advisoryURL'],'https://deps.dev/cargo/tokio/1.43.0')
+    def test_private_or_unidentified_crates_are_not_linked_to_public_registry(self):
+        for purl in ('pkg:cargo/private@1?repository_url=https%3A%2F%2Fexample.com', 'pkg:cargo/missing-version', 'pkg:deb/debian/libssl3@3.0.1', ''):
+            with self.subTest(purl=purl):
+                p={'name':'example','externalRefs':[{'referenceType':'purl','referenceLocator':purl}]}
+                self.assertEqual(packages({'packages':[p]})[0]['packageURL'],'')
+    def test_image_package_links_follow_registry_repository(self):
+        for owner in ('cnpg-extensions','cloudnative-pg'):
+            self.assertEqual(image_package_url(f'ghcr.io/{owner}/pgvector:18@sha256:abc'),f'https://github.com/orgs/{owner}/packages/container/package/pgvector')
+        self.assertEqual(image_package_url('ghcr.io/cnpg-extensions/nested/image@sha256:abc'),'https://github.com/orgs/cnpg-extensions/packages/container/package/nested%2Fimage')
+        self.assertEqual(image_package_url('example.com/org/image:latest'),'')
     def test_debian_link_uses_source_package_not_binary_name(self):
         p={'name':'libssl3','externalRefs':[{'referenceType':'purl','referenceLocator':'pkg:deb/debian/libssl3@3.0.1?upstream=openssl'}]}
         self.assertEqual(advisory_url(p),'https://security-tracker.debian.org/tracker/source-package/openssl')

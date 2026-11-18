@@ -5,7 +5,7 @@ No per-extension editorial data. Network failures are explicit, never zero findi
 import argparse, concurrent.futures, hashlib, json, os, re, shutil, subprocess, sys
 from datetime import datetime, timezone
 from image_notices import container_notices
-from osv_scan import scan_osv
+from osv_scan import scan_osv, refresh_database
 from guide_layout import getting_started
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit, parse_qs, unquote, quote
@@ -56,6 +56,29 @@ def advisory_url(package):
         if source: return 'https://security-tracker.debian.org/tracker/source-package/'+quote(source,safe='')
     return ''
 
+def crate_url(package):
+    """Link crates.io identities using the installed version from SPDX."""
+    for ref in package.get('externalRefs', []):
+        if ref.get('referenceType') != 'purl':
+            continue
+        identity, _, query = ref.get('referenceLocator', '').partition('?')
+        if not identity.startswith('pkg:cargo/') or parse_qs(query).get('repository_url'):
+            continue
+        name, sep, version = identity.removeprefix('pkg:cargo/').rpartition('@')
+        if sep and name and version:
+            return 'https://crates.io/crates/' + quote(unquote(name), safe='') + '/' + quote(unquote(version), safe='')
+    return ''
+
+def image_package_url(reference):
+    """Use the catalog image repository rather than the extension recipe name."""
+    if not reference.startswith('ghcr.io/'):
+        return ''
+    repository = reference.removeprefix('ghcr.io/').split('@', 1)[0].split(':', 1)[0]
+    owner, sep, name = repository.partition('/')
+    if not owner or not sep or not name:
+        return ''
+    return 'https://github.com/orgs/' + quote(owner, safe='') + '/packages/container/package/' + quote(name, safe='')
+
 def package_ecosystem(package):
     for ref in package.get('externalRefs', []):
         if ref.get('referenceType') == 'purl':
@@ -69,7 +92,7 @@ def packages(spdx):
     return sorted([{'name':p['name'],'version':p.get('versionInfo','Not recorded'),
                     'declared':p.get('licenseDeclared','NOASSERTION'),
                     'concluded':p.get('licenseConcluded','NOASSERTION'),
-                    'files':p.get('licenseInfoFromFiles',[]),'ecosystem':package_ecosystem(p),'advisoryURL':advisory_url(p)} for p in spdx.get('packages',[])],key=lambda p:(p['name'],p['version']))
+                    'files':p.get('licenseInfoFromFiles',[]),'ecosystem':package_ecosystem(p),'packageURL':crate_url(p),'advisoryURL':advisory_url(p)} for p in spdx.get('packages',[])],key=lambda p:(p['name'],p['version']))
 
 def notice_files(spdx):
     """Find notice paths in the shipped-file inventory, not embedded license records."""
@@ -89,7 +112,8 @@ def check_digest(data, digest):
         raise ValueError('Registry content does not match catalog/descriptor digest')
 
 class Registry:
-    def __init__(self, ref):
+    def __init__(self, ref, refresh=False):
+        self.refresh = refresh
         host, rest=ref.split('/',1)
         if host!='ghcr.io': raise ValueError('Unsupported registry: '+host)
         named,self.digest=rest.split('@')
@@ -102,7 +126,7 @@ class Registry:
         self.session.headers.update({'Authorization':'Bearer '+r.json()['token'], 'Accept':'application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json'})
     def get(self,digest,kind='manifests'):
         dest=CACHE/'oci'/digest.replace(':','-')
-        if dest.exists(): data=dest.read_bytes()
+        if dest.exists() and not self.refresh: data=dest.read_bytes()
         else:
             r=self.session.get(self.base+kind+'/'+digest,timeout=120);r.raise_for_status();data=r.content
             check_digest(data,digest)
@@ -128,10 +152,10 @@ def scan(sbom, grype, database):
             'findings':sorted(findings.values(),key=lambda v:(v['severity'],v['id'],v['package'])),
             'report':str(dest.relative_to(ROOT/'static'))}
 
-def inspect_image(item, grype, database):
+def inspect_image(item, grype, database, osv_database=None, refresh=False):
     result={**item,'platforms':[]}
     try:
-        reg=Registry(item['reference']);index=reg.get(reg.digest)
+        reg=Registry(item['reference'], refresh=refresh);index=reg.get(reg.digest)
         result['annotations']=index.get('annotations',{})
         manifests=index.get('manifests',[])
         platforms=[m for m in manifests if m.get('platform',{}).get('os')=='linux' and m.get('platform',{}).get('architecture') in ['amd64','arm64']]
@@ -157,7 +181,7 @@ def inspect_image(item, grype, database):
                 record.update(status='available',packages=packages(spdx),licenses=spdx.get('hasExtractedLicensingInfos',[]),sbom=str(dest.relative_to(ROOT/'static')))
                 try: record['scan']=scan(dest,grype,database)
                 except Exception as ex: record['scan']={'status':'unavailable','reason':str(ex)}
-                record['osvScan']=scan_osv(dest,ROOT,shutil.which('osv-scanner') if grype else None)
+                record['osvScan']=scan_osv(dest,ROOT,shutil.which('osv-scanner') if grype else None,osv_database)
             except Exception as ex: record['reason']=str(ex)
             result['platforms'].append(record)
         result['status']='available'
@@ -210,7 +234,16 @@ def readme_html(text, repo, commit, path, routes, depth=2):
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--refresh',action='store_true');parser.add_argument('--scan',action='store_true');parser.add_argument('--workers',type=int,default=4);parser.add_argument('--reuse-evidence',action='store_true',help='Local layout iteration only: reuse exact-digest evidence with original scan timestamps')
+    parser.add_argument('--rebuild-cache', action='store_true', help='Ignore saved OCI assets, license notices, and version history')
+    parser.add_argument('--refresh-extension', help='Refetch saved assets for one catalog extension')
     args=parser.parse_args();CACHE.mkdir(exist_ok=True)
+    if args.refresh_extension and args.reuse_evidence:
+        parser.error('--refresh-extension cannot be combined with --reuse-evidence')
+    if args.rebuild_cache:
+        if args.reuse_evidence:
+            parser.error('--rebuild-cache cannot be combined with --reuse-evidence')
+        for name in ('oci', 'image-notices-v1', 'version-history'):
+            shutil.rmtree(CACHE / name, ignore_errors=True)
     commits={n:checkout(n,args.refresh) for n in REPOS}
     refresh_record=CACHE/'source-refresh.json'
     previous=json.loads(refresh_record.read_text()) if refresh_record.exists() else {}
@@ -240,6 +273,8 @@ def main():
                 if not re.fullmatch(r'[a-z0-9][a-z0-9_-]*',e['name']):raise ValueError('Unsafe extension name')
                 jobs.append({'name':e['name'],'pg':entry['major'],'distro':distro,'reference':ref,'catalog':cat.name})
     if not jobs: raise RuntimeError('Catalog contains no extensions')
+    if args.refresh_extension and args.refresh_extension not in {j['name'] for j in jobs}:
+        parser.error('Unknown catalog extension: ' + args.refresh_extension)
     evidence_file=CACHE/'inspected.json'
     if args.reuse_evidence:
         saved=json.loads(evidence_file.read_text());images=saved['images'];database=saved['database']
@@ -253,15 +288,17 @@ def main():
             p=subprocess.run([grype,'db','update'],capture_output=True,text=True)
             if p.returncode: database={'error':'Vulnerability database update failed; no current scan is available.'}
             else: database=json.loads(run(grype,'db','status','-o','json'))
+        osv_database=refresh_database(ROOT) if args.scan else None
         images=[]
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
-            futures=[pool.submit(inspect_image,j,grype,database) for j in jobs]
+            futures=[pool.submit(inspect_image,j,grype,database,osv_database,j['name']==args.refresh_extension) for j in jobs]
             for f in concurrent.futures.as_completed(futures):
                 image=f.result();images.append(image)
                 print(f"{len(images)}/{len(jobs)} {image['name']} {image['distro']}: {image['status']}",flush=True)
         evidence_file.write_text(json.dumps({'images':images,'database':database}))
     # Rebuild display fields from original SPDX, including during local evidence reuse.
     for image in images:
+        image['packageURL'] = image_package_url(image['reference'])
         for platform in image['platforms']:
             if platform['status']=='available':
                 spdx=json.loads((ROOT/'static'/platform['sbom']).read_text())
@@ -273,7 +310,8 @@ def main():
         for image in images:
             for platform in image['platforms']:
                 pending.append((platform, pool.submit(container_notices,
-                    image['reference'], platform['architecture'], platform['digest'], CACHE)))
+                    image['reference'], platform['architecture'], platform['digest'], CACHE,
+                    refresh=image['name']==args.refresh_extension)))
         for platform, future in pending:
             platform['containerNotices']=future.result()
     entries=[]
@@ -309,6 +347,8 @@ def main():
             tab_fm = dict(fm, view=view)
             tab_body=readme_html(text,repo,recipe['commit'],recipe['path'],routes,depth=3)
             (tab_directory/'index.md').write_text('---\n'+yaml.safe_dump(tab_fm,sort_keys=False)+'---\n'+tab_body+'\n')
+    from version_history import generate_history
+    generate_history(entries, refresh_extension=args.refresh_extension)
     result={'generatedAt':NOW,'sourceRefreshedAt':source_refreshed_at,'commits':commits,'count':len(entries),'extensions':entries,'database':database}
     (ROOT/'data').mkdir(exist_ok=True)
     (ROOT/'data/generated.json').write_text(json.dumps(result))

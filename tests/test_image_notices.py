@@ -1,10 +1,13 @@
 import io
+import json
+import tempfile
+from unittest.mock import patch
 import sys
 import tarfile
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from image_notices import read_notices
+from image_notices import read_notices, container_notices
 
 class NoticeTests(unittest.TestCase):
     def archive(self, entries):
@@ -41,3 +44,34 @@ class NoticeTests(unittest.TestCase):
         with self.archive([('licenses/missing',('absent',))]) as archive:
             with self.assertRaises((KeyError,ValueError)):
                 read_notices(archive)
+
+    def test_cached_digest_skips_all_docker_operations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache=Path(directory)/'image-notices-v1'
+            cache.mkdir()
+            expected={'status':'available','files':[]}
+            (cache/'sha256-abc.json').write_text(json.dumps(expected))
+            with patch('image_notices.subprocess.run') as run, patch('image_notices.subprocess.check_output') as output:
+                self.assertEqual(container_notices('ghcr.io/org/image@sha256:index','amd64','sha256:abc',directory),expected)
+                run.assert_not_called()
+                output.assert_not_called()
+
+    def test_failed_extraction_is_not_cached_and_is_retried(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch('image_notices.subprocess.run',side_effect=OSError('offline')) as run:
+                for _ in range(2):
+                    result=container_notices('ghcr.io/org/image@sha256:index','amd64','sha256:abc',directory)
+                    self.assertEqual(result['status'],'unavailable')
+                self.assertEqual(run.call_count,2)
+            self.assertFalse((Path(directory)/'image-notices-v1'/'sha256-abc.json').exists())
+
+    def test_refresh_bypasses_saved_notices(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache=Path(directory)/'image-notices-v1'
+            cache.mkdir()
+            (cache/'sha256-abc.json').write_text(json.dumps({'status':'available','files':[]}))
+            with patch('image_notices.subprocess.run',side_effect=OSError('offline')) as run:
+                result=container_notices('ghcr.io/org/image@sha256:index','amd64','sha256:abc',directory,refresh=True)
+                self.assertEqual(result['status'],'unavailable')
+                run.assert_called_once()
+            self.assertFalse((cache/'sha256-abc.json').exists())

@@ -1,0 +1,43 @@
+name: Verify hosted cache persistence
+on:
+  push:
+    branches: ['ci/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  populate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python scripts/verify-caches.py populate
+      - uses: actions/upload-artifact@v4
+        with:
+          path: |
+            .cache/oci
+            .cache/version-history/history.json
+            .cache/image-notices-v1
+            .cache/cache-verification.json
+          name: cache-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          retention-days: 7
+  restore:
+    needs: populate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: cache-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .cache
+      - run: python scripts/verify-caches.py restore
