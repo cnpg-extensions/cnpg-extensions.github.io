@@ -1,9 +1,14 @@
 # CNPG Extensions website
 
 Hugo + Hextra, with custom layouts preserving the approved Nunito Sans / warm-paper
-homepage. Hosted with GitHub Pages. No application server, analytics, or browser-side
+homepage. Hosted with GitHub Pages. No application server or browser-side
 CVE API keys. Search/filtering runs locally in the browser; all extension links
 also work without JavaScript.
+
+Production builds include GoatCounter analytics on every page through the shared
+layout, recording page visits and referrers at
+`https://cnpg-extensions.goatcounter.com`. Development builds (`hugo server` or
+`hugo --environment development`) omit the tracking script.
 
 ## Build and preview
 

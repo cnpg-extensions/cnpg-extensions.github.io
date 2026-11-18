@@ -12,6 +12,9 @@
 <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
 {{ $js := (slice (resources.Get "js/site.js") (resources.Get "js/timestamps.js")) | resources.Concat "js/site-bundle.js" | minify | fingerprint }}
 <script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" defer></script>
+{{ if hugo.IsProduction }}
+<script data-goatcounter="https://cnpg-extensions.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+{{ end }}
 </head><body data-theme="hextra" data-font="nunito">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header"><div class="nav-inner">
@@ -20,5 +23,5 @@
 <div class="nav-tools">{{ partial "theme-switcher.html" . }}<a class="github-link" aria-label="GitHub" title="GitHub" href="https://github.com/cnpg-extensions" target="_blank" rel="noopener noreferrer">{{ partial "github-icon.html" . }}</a><button class="mobile-menu" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Toggle navigation menu">Menu <span aria-hidden="true">☰</span></button></div>
 </div><nav id="mobile-nav" aria-label="Mobile navigation" hidden>{{ partial "navigation.html" . }}</nav></header>
 <main id="main">{{ block "main" . }}{{ end }}</main>
-<footer class="wrap site-footer"><span>Open source. <a href="https://cloudnative-pg.io/" target="_blank" rel="noopener noreferrer">Built for CloudNativePG ↗</a>.</span><span><a href="{{ `security/` | relURL }}">Security &amp; transparency</a> · <a href="https://github.com/cnpg-extensions" target="_blank" rel="noopener noreferrer">GitHub ↗</a></span></footer>
+<footer class="wrap site-footer"><span>Open source. <a href="https://cloudnative-pg.io/" target="_blank" rel="noopener noreferrer">Built for CloudNativePG ↗</a>.</span><span><a href="{{ `security/` | relURL }}">Security &amp; transparency</a> · <a href="https://cnpg-extensions.goatcounter.com/" target="_blank" rel="noopener noreferrer">Site statistics ↗</a> · <a href="https://github.com/cnpg-extensions" target="_blank" rel="noopener noreferrer">GitHub ↗</a></span></footer>
 </body></html>
