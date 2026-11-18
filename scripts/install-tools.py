@@ -3,9 +3,9 @@
 import urllib.request, hashlib, tarfile, io
 from pathlib import Path
 # renovate: datasource=github-releases depName=gohugoio/hugo
-HUGO_VERSION = "0.170.0"
+HUGO_VERSION = "0.170.1"
 # renovate: datasource=github-releases depName=anchore/grype
-GRYPE_VERSION = "0.121.3"
+GRYPE_VERSION = "0.122.1"
 # renovate: datasource=github-releases depName=google/osv-scanner
 OSV_SCANNER_VERSION = "2.7.1"
 

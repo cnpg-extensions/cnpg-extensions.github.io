@@ -24,14 +24,14 @@ concurrency:
 jobs:
   inspect:
     name: Scan image shard ${{ matrix.shard }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         shard: [0, 1, 2, 3]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: ./.github/actions/prepare-website
@@ -50,7 +50,7 @@ jobs:
           python scripts/generate.py "${args[@]}"
       - name: Save fresh evidence and retrieved assets
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: website-evidence-${{ matrix.shard }}
           overwrite: true
@@ -64,10 +64,10 @@ jobs:
           retention-days: 1
   history:
     name: Refresh version history
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: ./.github/actions/prepare-website
@@ -82,7 +82,7 @@ jobs:
           python scripts/history_evidence.py "${args[@]}"
       - name: Save history and retrieved assets
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: website-evidence-history
           overwrite: true
@@ -96,17 +96,17 @@ jobs:
   build:
     needs: [inspect, history]
     if: ${{ always() && !cancelled() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: ./.github/actions/prepare-website
         with:
           rebuild-cache: ${{ inputs.rebuild_cache }}
       - name: Collect fresh evidence and retrieved assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: website-evidence-*
           merge-multiple: true
@@ -129,7 +129,7 @@ jobs:
           python scripts/generate.py "${args[@]}"
       - name: Save website assets for the next build
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: website-assets-v1-${{ hashFiles('scripts/image_notices.py') }}
           overwrite: true
@@ -144,13 +144,13 @@ jobs:
         run: hugo --minify --baseURL 'https://cnpg-extensions.github.io/'
       - name: Validate generated output
         run: python scripts/check-site.py public
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: public
   deploy:
     if: github.repository == 'cnpg-extensions/cnpg-extensions.github.io' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       pages: write
       id-token: write
@@ -160,4 +160,4 @@ jobs:
     steps:
       - name: Deploy GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
