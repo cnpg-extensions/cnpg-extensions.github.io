@@ -414,7 +414,7 @@ def main():
             fm['type'] = 'extensions'
             (directory/'_index.md').write_text('---\n'+yaml.safe_dump(fm,sort_keys=False)+'---\n'+body+'\n')
             tab_body=readme_html(text,repo,recipe['commit'],recipe['path'],routes,depth=3)
-            for view in ('overview', 'documentation', 'dependencies', 'licenses'):
+            for view in ('overview', 'documentation', 'dependencies', 'licenses', 'versions'):
                 tab_directory = directory/view
                 tab_directory.mkdir(exist_ok=True)
                 tab_fm = dict(fm, view=view)

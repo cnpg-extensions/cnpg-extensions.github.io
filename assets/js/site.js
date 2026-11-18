@@ -85,7 +85,12 @@ if (detail) {
  nav.setAttribute('role','tablist');
  tabs.forEach(tab => { tab.setAttribute('role','tab'); tab.id = `tab-${tab.dataset.detailView}`; tab.setAttribute('aria-controls',tab.dataset.detailView); });
  views.forEach(view => {view.setAttribute('role','tabpanel'); view.setAttribute('aria-labelledby',`tab-${view.id}`);});
+ function scrollToTabs() {
+  const top = detail.querySelector('.detail-view-start').getBoundingClientRect().top;
+  if (top < 0) window.scrollTo({top: window.scrollY + top, behavior:'instant'});
+ }
  function showView(id, updateURL = false) {
+  if (updateURL) scrollToTabs();
   tabs.forEach(tab => {const selected = tab.dataset.detailView === id;tab.setAttribute('aria-selected',String(selected));tab.tabIndex = selected ? 0 : -1;});
   views.forEach(view => view.hidden = view.id !== id);
   const selectedTab = tabs.find(tab => tab.dataset.detailView === id);
@@ -115,7 +120,7 @@ if (detail) {
    history.replaceState(null, '', url);
   }
   showView(known ? id : detail.dataset.defaultView);
-  if (known) requestAnimationFrame(() => detail.querySelector('.extension-heading').scrollIntoView({block:'start',behavior:'instant'}));
+  if (known) requestAnimationFrame(() => scrollToTabs());
  };
  syncView();
  window.addEventListener('hashchange',syncView);
