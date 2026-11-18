@@ -90,7 +90,8 @@ if (detail) {
   if (top < 0) window.scrollTo({top: window.scrollY + top, behavior:'instant'});
  }
  function showView(id, updateURL = false) {
-  if (updateURL) scrollToTabs();
+  const tabTop = detail.querySelector('.detail-view-start').getBoundingClientRect().top;
+  const shouldScroll = updateURL && tabTop < 0;
   tabs.forEach(tab => {const selected = tab.dataset.detailView === id;tab.setAttribute('aria-selected',String(selected));tab.tabIndex = selected ? 0 : -1;});
   views.forEach(view => view.hidden = view.id !== id);
   const selectedTab = tabs.find(tab => tab.dataset.detailView === id);
@@ -100,13 +101,17 @@ if (detail) {
    else if (tabBounds.right > navBounds.right) nav.scrollLeft += tabBounds.right - navBounds.right;
   }
   detail.querySelector('.inventory-controls').hidden = id === 'documentation' || id === 'versions';
+  if (shouldScroll) requestAnimationFrame(() => {
+   const top = detail.querySelector('.detail-view-start').getBoundingClientRect().top;
+   window.scrollTo({top:window.scrollY + top,behavior:'instant'});
+  });
   if(updateURL) { const url = new URL(location.href);url.pathname = new URL(tabs.find(tab => tab.dataset.detailView === id).href).pathname;url.hash = new URL(tabs.find(tab => tab.dataset.detailView === id).href).hash;history.pushState(null,'',url); }
  }
  tabs.forEach((tab,i) => {
   tab.addEventListener('click',e=>{e.preventDefault();showView(tab.dataset.detailView,true);});
-  tab.addEventListener('keydown',e=>{let next;if(e.key==='ArrowRight')next=(i+1)%tabs.length;if(e.key==='ArrowLeft')next=(i+tabs.length-1)%tabs.length;if(e.key==='Home')next=0;if(e.key==='End')next=tabs.length-1;if(next!==undefined){e.preventDefault();tabs[next].focus();showView(tabs[next].dataset.detailView,true);}});
+  tab.addEventListener('keydown',e=>{let next;if(e.key==='ArrowRight')next=(i+1)%tabs.length;if(e.key==='ArrowLeft')next=(i+tabs.length-1)%tabs.length;if(e.key==='Home')next=0;if(e.key==='End')next=tabs.length-1;if(next!==undefined){e.preventDefault();tabs[next].focus({preventScroll:true});showView(tabs[next].dataset.detailView,true);}});
  });
- detail.querySelectorAll('[data-open-view]').forEach(link => link.addEventListener('click', event => {event.preventDefault();if(link.hasAttribute("data-clear-dependency-filters")){nameFilter.value="";licenseFilter.value="";advisoryFilter.checked=false;filterDependencies();}if(link.hasAttribute("data-filter-advisories")){nameFilter.value="";licenseFilter.value="";advisoryFilter.checked=true;filterDependencies();}showView(link.dataset.openView, true);tabs.find(tab => tab.dataset.detailView === link.dataset.openView)?.focus();}));
+ detail.querySelectorAll('[data-open-view]').forEach(link => link.addEventListener('click', event => {event.preventDefault();if(link.hasAttribute("data-clear-dependency-filters")){nameFilter.value="";licenseFilter.value="";advisoryFilter.checked=false;filterDependencies();}if(link.hasAttribute("data-filter-advisories")){nameFilter.value="";licenseFilter.value="";advisoryFilter.checked=true;filterDependencies();}showView(link.dataset.openView, true);tabs.find(tab => tab.dataset.detailView === link.dataset.openView)?.focus({preventScroll:true});}));
  const syncView = () => {
   const id = location.pathname.split('/').filter(Boolean).at(-1);
   const known = views.some(view => view.id === id);
