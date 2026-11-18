@@ -52,3 +52,15 @@ class ScorecardDataTests(unittest.TestCase):
                      'extensions': {'example': {'status': 'available', 'repository': REPO, 'report': '../secret.json'}}}
             (Path(directory) / 'index.json').write_text(json.dumps(index))
             self.assertEqual(m.read_artifact(Path(directory), '123'), {})
+
+    def test_checks_order_by_risk_then_name_without_exposing_risk(self):
+        names = ['License', 'SAST', 'Webhooks', 'Maintained', 'CI-Tests',
+                 'Code-Review', 'Dangerous-Workflow', 'New-Check']
+        checks = [{'name': name, 'score': i % 11} for i, name in enumerate(names)]
+        report = {**REPORT, 'checks': checks}
+        result = m.present(report, REPO, 'OpenSSF API', 'https://example.com')
+        self.assertEqual([c['name'] for c in result['checks']],
+                         ['Dangerous-Workflow', 'Webhooks', 'Code-Review', 'Maintained',
+                          'SAST', 'CI-Tests', 'License', 'New-Check'])
+        self.assertEqual(report['checks'], checks)
+        self.assertTrue(all('risk' not in c for c in result['checks']))

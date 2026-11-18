@@ -86,11 +86,30 @@ def resolve(repository, fallback, output):
     return {'status': 'unavailable', 'repository': repository}
 
 
+# OpenSSF v5.6.0, matching the pinned scanner:
+# https://github.com/ossf/scorecard/blob/v5.6.0/docs/checks/internal/checks.yaml
+# Risk is only an ordering input; do not add labels or alter report scores.
+CHECK_RISK_ORDER = {
+    **dict.fromkeys(('Dangerous-Workflow', 'Webhooks'), 0),
+    **dict.fromkeys(('Maintained', 'Dependency-Update-Tool', 'Binary-Artifacts',
+                     'Branch-Protection', 'Code-Review', 'Signed-Releases',
+                     'Token-Permissions', 'Vulnerabilities'), 1),
+    **dict.fromkeys(('Fuzzing', 'Packaging', 'Pinned-Dependencies', 'SAST',
+                     'SBOM', 'Security-Policy'), 2),
+    **dict.fromkeys(('CI-Tests', 'CII-Best-Practices', 'Contributors', 'License'), 3),
+}
+
+
+def check_order(check):
+    # Keep new, unclassified checks visible after known checks until reviewed.
+    return CHECK_RISK_ORDER.get(check['name'], 4), check['name'].lower()
+
+
 def present(report, repository, source, url):
     # Deliberately exclude the aggregate score; preserve each check's raw score and explanation.
     return {'status': 'available', 'repository': repository, 'source': source, 'url': url,
             'date': report['date'], 'commit': report['repo']['commit'],
-            'checks': sorted(report['checks'], key=lambda check: check['name'].lower())}
+            'checks': sorted(report['checks'], key=check_order)}
 
 
 def generate_scorecards():
