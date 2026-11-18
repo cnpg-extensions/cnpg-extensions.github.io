@@ -23,7 +23,9 @@ def deb_identity(package):
         value = ref.get('referenceLocator', '')
         if ref.get('referenceType') == 'purl' and value.startswith('pkg:deb/debian/'):
             path, _, query = value.partition('?')
-            return unquote(path.split('@')[0].split('/')[-1]), parse_qs(query).get('upstream', [''])[0]
+            # The upstream qualifier may include a source version (e.g. cairo@1.18.4-1).
+            source = parse_qs(query).get('upstream', [''])[0].partition('@')[0]
+            return unquote(path.split('@')[0].split('/')[-1]), source
     return '', ''
 
 def license_summary(packages):

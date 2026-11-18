@@ -19,6 +19,11 @@ class OverviewMetadataTests(unittest.TestCase):
         self.assertEqual(deb_identity(package), ('postgresql-18-ogr-fdw', 'pgsql-ogr-fdw'))
         self.assertEqual(deb_identity({'externalRefs': []}), ('', ''))
 
+    def test_versioned_debian_source_qualifier_excludes_version_from_identity(self):
+        package = {'externalRefs': [{'referenceType': 'purl', 'referenceLocator':
+            'pkg:deb/debian/libcairo2@1.18.4-1%2Bb1?arch=amd64&upstream=cairo%401.18.4-1'}]}
+        self.assertEqual(deb_identity(package), ('libcairo2', 'cairo'))
+
     def test_only_web_metadata_links(self):
         self.assertEqual(valid_url('javascript:alert(1)'), '')
         self.assertEqual(valid_url('NOASSERTION'), '')
