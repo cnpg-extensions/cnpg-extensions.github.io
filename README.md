@@ -299,17 +299,21 @@ Valid partial JSON reports are retained even on a nonzero exit, with the exit co
 inconclusive check count and sanitized diagnostics. Invalid or absent reports
 remain unavailable. The workflow prints per-repository progress as scans finish.
 
-### Scorecard dependency updates
+### Monthly dependency updates
 
-`renovate.json` limits automated dependency updates to
-`.github/workflows/scorecards.yml`: GitHub Actions, Python, PyYAML, and the
-Scorecard release binary. Renovate checks on the first day of each month between 00:00 and
-07:00 UTC and batches all available updates, including major versions, into one
-PR for manual review. Only one regular update PR can be open at a time; existing
+`renovate.json` enables automated dependency updates across the repository:
+GitHub Actions and Python versions in workflows and composite actions, packages in
+`requirements.txt`, the Hextra theme submodule, inline PyYAML, and the Hugo, Grype,
+OSV Scanner, and Scorecard release binaries. Default managers remain enabled so
+new supported dependency files are discovered automatically. Renovate checks on
+the first day of each month between 00:00 and 07:00 UTC and batches all available
+updates, including major versions, into one PR for manual review. Only one regular update PR can be open at a time; existing
 update branches are refreshed during the monthly window. The Scorecard version is
 defined once in `SCORECARD_VERSION`; the release tag, archive name, and checksum
 selection all use that value. Release checksum verification remains required.
 
 To activate updates after merging, enable the hosted [Renovate GitHub App](https://github.com/apps/renovate)
 for this repository. No workflow token or additional repository secret is needed.
-Existing website dependencies are outside this configuration's scope.
+Tool versions in `scripts/install-tools.py` are defined once and annotated for
+Renovate; download URLs, archive names, and status messages use those values.
+Downloaded tools continue to require release checksum verification.

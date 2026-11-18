@@ -3,13 +3,6 @@
   "extends": [
     "config:recommended"
   ],
-  "enabledManagers": [
-    "github-actions",
-    "custom.regex"
-  ],
-  "includePaths": [
-    ".github/workflows/scorecards.yml"
-  ],
   "schedule": [
     "* 0-6 1 * *"
   ],
@@ -29,28 +22,41 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/^\\.github/workflows/scorecards\\.yml$/"
+        "/^\\.github/(?:workflows/[^/]+|actions/.+/action)\\.ya?ml$/"
       ],
       "matchStrings": [
         "pip install (?<depName>PyYAML)==(?<currentValue>[0-9.]+)"
       ],
       "datasourceTemplate": "pypi",
       "versioningTemplate": "pep440"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^scripts/install-tools\\.py$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+[A-Z_]+ = \"(?<currentValue>[^\"]+)\""
+      ],
+      "extractVersionTemplate": "^v(?<version>.*)$"
     }
   ],
   "prConcurrentLimit": 1,
   "updateNotScheduled": false,
   "packageRules": [
     {
-      "description": "Batch all Scorecard workflow dependencies into one monthly update PR, including major updates.",
+      "description": "Batch all repository dependencies into one monthly update PR, including major updates.",
       "matchPackageNames": [
         "*"
       ],
-      "groupName": "Scorecard workflow dependencies",
-      "groupSlug": "scorecard-workflow-dependencies",
+      "groupName": "all dependencies",
+      "groupSlug": "all-dependencies",
       "separateMajorMinor": false,
       "separateMinorPatch": false,
       "separateMultipleMajor": false
     }
-  ]
+  ],
+  "git-submodules": {
+    "enabled": true
+  }
 }
