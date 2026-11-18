@@ -3,6 +3,15 @@
 {{ $images := .variants }}{{ with $history }}{{ with .builds }}{{ $images = . }}{{ end }}{{ end }}
 <div class="versions-heading"><div><h2>Versions</h2><p>Extension versions and the images built from them.</p></div>{{ with (index .variants 0).packageURL }}<a href="{{ . }}" target="_blank" rel="noopener noreferrer">Browse GHCR ↗</a>{{ end }}</div>
 <p class="versions-preview-note">{{ if hugo.IsServer }}Local design preview · {{ end }}{{ with $history }}Tagged GHCR builds fetched {{ time.Format "2 Jan 2006, 15:04 UTC" .fetchedAt }}.{{ else }}Showing current catalog images. Historical releases are not loaded.{{ end }}</p>
+{{ $cutoff := time.AsTime "2026-11-10T00:00:00Z" }}
+{{ $visibleImages := slice }}
+{{ range $images }}
+{{ $image := . }}
+{{ with index .annotations "org.opencontainers.image.created" }}
+{{ if ge (time.AsTime .).Unix $cutoff.Unix }}{{ $visibleImages = $visibleImages | append $image }}{{ end }}
+{{ end }}
+{{ end }}
+{{ $images = $visibleImages }}
 {{ $versions := slice }}{{ range $images }}{{ $versions = $versions | append .version }}{{ end }}
 {{ range $index, $version := ($versions | uniq) }}
 {{ $builds := where $images "version" $version }}
@@ -30,4 +39,4 @@
 {{ end }}
 </div></details>
 {{ end }}
-<p class="versions-history-note">{{ if $history }}Timestamp-tagged builds, newest first. All dates are UTC. Image digests identify each build.{{ else }}Each version groups its published images. Load GHCR history to see earlier rebuilds.{{ end }}</p>
+<p class="versions-history-note">{{ if $history }}Timestamp-tagged builds, newest first. Showing builds from 10 Nov 2026 onward. All dates are UTC. Image digests identify each build.{{ else }}Each version groups its published images. Load GHCR history to see earlier rebuilds.{{ end }}</p>
