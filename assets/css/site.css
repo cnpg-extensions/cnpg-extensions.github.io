@@ -361,3 +361,5 @@ body[data-theme] .get-started-section .technical{margin-top:0}
 .scorecard-check-body p{margin:8px 0}
 .scorecard-check-body ul{padding-left:18px;max-height:20rem;overflow:auto}
 .scorecard-check summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.version-build-date{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0;white-space:normal}

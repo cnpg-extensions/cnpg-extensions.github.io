@@ -31,8 +31,10 @@
 {{ range $order }}
 {{ $items := index $groups . }}{{ $first := index $items 0 }}
 {{ $revision := index $first.annotations "org.opencontainers.image.revision" }}{{ $source := index $first.annotations "org.opencontainers.image.source" }}
+{{ $inCatalog := false }}
+{{ range $items }}{{ $reference := .reference }}{{ range $current }}{{ if eq .reference $reference }}{{ $inCatalog = true }}{{ end }}{{ end }}{{ end }}
 <article class="version-build version-build-compact">
-<div class="version-build-line">{{ with index $first.annotations "org.opencontainers.image.created" }}{{ partial "timestamp.html" . }}{{ else }}<span>Date unavailable</span>{{ end }}
+<div class="version-build-line"><div class="version-build-date">{{ with index $first.annotations "org.opencontainers.image.created" }}{{ partial "timestamp.html" . }}{{ else }}<span>Date unavailable</span>{{ end }}{{ if $inCatalog }}<span class="version-badge">In catalog</span>{{ end }}</div>
 {{ if and $source $revision }}<a href="{{ $source }}/commit/{{ $revision }}" target="_blank" rel="noopener noreferrer" title="Source commit"><code>{{ substr $revision 0 7 }}</code></a>{{ end }}
 <details class="build-digests"><summary>Digests</summary><div class="build-digest-list">{{ $ordered := slice }}{{ range $items }}{{ $rank := 2 }}{{ if eq .distro "trixie" }}{{ $rank = 0 }}{{ else if eq .distro "bookworm" }}{{ $rank = 1 }}{{ end }}{{ $pgOrder := 9999 }}{{ if findRE `^[0-9]+$` (printf "%v" .pg) }}{{ $pgOrder = sub 9999 (int .pg) }}{{ end }}{{ $ordered = $ordered | append (dict "image" . "order" (printf "%04d-%d-%s" $pgOrder $rank .distro)) }}{{ end }}{{ range sort $ordered "order" }}{{ with .image }}{{ $digest := index (split .reference "@") 1 }}<div><strong>PG {{ .pg }} · {{ .distro | title }}</strong><code title="{{ $digest }}" tabindex="0" aria-label="Image digest: {{ $digest }}">{{ $digest }}</code>{{ with .imageURL }}<a href="{{ . }}" target="_blank" rel="noopener noreferrer" title="Exact image version on GHCR">GHCR ↗</a>{{ end }}</div>{{ end }}{{ end }}</div></details>
 </div></article>
