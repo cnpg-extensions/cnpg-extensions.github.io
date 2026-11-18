@@ -239,6 +239,11 @@ def readme_html(text, repo, commit, path, routes, depth=2):
     tags={'a','p','div','span','h1','h2','h3','h4','h5','h6','ul','ol','li','pre','code','strong','em','blockquote','table','thead','tbody','tr','th','td','hr','br','img','details','summary','del','sup','sub'}
     return bleach.clean(str(soup),tags=tags,attributes={'*':['id','class'],'a':['href','title','target','rel'],'img':['src','alt','width','height'],'details':['open'],'span':['class','aria-hidden']},protocols=['http','https','mailto'],strip=True)
 
+def variant_order(image):
+    """Prefer the newest PG major, then Trixie, with deterministic distro order."""
+    return -int(image['pg']), image['distro'] != 'trixie', image['distro']
+
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--refresh',action='store_true');parser.add_argument('--scan',action='store_true');parser.add_argument('--workers',type=int,default=4)
     mode = parser.add_mutually_exclusive_group()
@@ -382,7 +387,7 @@ def main():
         content=ROOT/'content/extensions';content.mkdir(parents=True,exist_ok=True)
         for old in content.glob('*/index.md'): old.unlink()
         for name in sorted({j['name'] for j in jobs}):
-            variants=sorted([i for i in images if i['name']==name],key=lambda i:(i['distro']!='trixie',-i['pg']))
+            variants=sorted([i for i in images if i['name']==name],key=variant_order)
             publisher='cloudnative-pg' if '/cloudnative-pg/' in variants[0]['reference'] else 'cnpg-extensions'
             repo=publisher+'/postgres-extensions-containers';recipe=recipes.get((repo,name))
             if not recipe:

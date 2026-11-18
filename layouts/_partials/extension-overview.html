@@ -8,7 +8,7 @@
 {{ $total := partial "advisory-total.html" (dict "platform" $p) }}
 <a href="{{ printf "extensions/%s/dependencies/" $e.name | relURL }}" data-open-view="dependencies" data-filter-advisories title="Open dependencies with findings from Grype or OSV. Unknown means scan coverage is incomplete."><strong>{{ if and $available (gt $total.count 0) }}Yes{{ else if and $available $total.complete }}No{{ else }}Unknown{{ end }}</strong><span>Advisories found</span></a>
 </div>
-<div class="overview-top-facts"><div class="overview-package-column"><section class="overview-facts"><h3>Package details</h3><dl><dt>Extension version</dt><dd>{{ $v.version }}</dd><dt>Image built</dt><dd>{{ with index $v.annotations "org.opencontainers.image.created" }}{{ partial "timestamp.html" . }}{{ else }}Unavailable{{ end }}</dd><dt>Publisher</dt><dd>{{ $e.publisher }}</dd><dt>Build</dt><dd>{{ $e.build }}</dd><dt>Platform</dt><dd>{{ $v.distro | title }} · PG {{ $v.pg }} · {{ $p.architecture }}</dd></dl>
+<div class="overview-top-facts"><div class="overview-package-column"><section class="overview-facts"><h3>Package details</h3><dl><dt>Extension version</dt><dd>{{ $v.version }}</dd><dt>Image built</dt><dd>{{ with index $v.annotations "org.opencontainers.image.created" }}{{ partial "timestamp.html" . }}{{ else }}Unavailable{{ end }}</dd><dt>Publisher</dt><dd>{{ $e.publisher }}</dd><dt>Build</dt><dd>{{ $e.build }}</dd><dt>Platform</dt><dd>PG {{ $v.pg }} · {{ $v.distro | title }} · {{ $p.architecture }}</dd></dl>
 {{ $projectLinks := $v.projectLinks | default slice }}
 {{ $scorecard := index (hugo.Data.scorecards | default dict) $e.name }}
 {{ with $scorecard.repository }}
