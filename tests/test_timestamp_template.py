@@ -23,4 +23,5 @@ class TimestampTests(unittest.TestCase):
             self.assertIn('datetime="2026-11-10T00:00:00Z"', html)
             self.assertIn('10 Nov 2026, 00:00 UTC', html)
             self.assertEqual(html.count('data-local-time'), 1)
-            self.assertIn('10 Nov 2026 (date only; zone unavailable)', html)
+            self.assertIn('>10 Nov 2026</time>', html)
+            self.assertNotIn('(date only;', html)
