@@ -9,12 +9,19 @@
 <a href="{{ printf "extensions/%s/dependencies/" $e.name | relURL }}" data-open-view="dependencies" data-filter-advisories title="Open dependencies with findings from Grype or OSV. Unknown means scan coverage is incomplete."><strong>{{ if and $available (gt $total.count 0) }}Yes{{ else if and $available $total.complete }}No{{ else }}Unknown{{ end }}</strong><span>Advisories found</span></a>
 </div>
 <div class="overview-top-facts"><div class="overview-package-column"><section class="overview-facts"><h3>Package details</h3><dl><dt>Extension version</dt><dd>{{ $v.version }}</dd><dt>Publisher</dt><dd>{{ $e.publisher }}</dd><dt>Build</dt><dd>{{ $e.build }}</dd><dt>Platform</dt><dd>{{ $v.distro | title }} · PG {{ $v.pg }} · {{ $p.architecture }}</dd></dl>
-</section><section class="overview-facts"><h3>Project links</h3><ul>{{ range $v.projectLinks }}<li><a href="{{ .url }}" target="_blank" rel="noopener noreferrer">{{ .label }} ↗<small>{{ replaceRE `^https?://` "" .url }}</small></a></li>{{ end }}</ul>
-{{ if $v.projectLinks }}<p class="overview-footnote">Links from package metadata or recipe update rules.</p>{{ end }}
+{{ $projectLinks := $v.projectLinks | default slice }}
+{{ $scorecard := index (hugo.Data.scorecards | default dict) $e.name }}
+{{ with $scorecard.repository }}
+{{ $repository := . }}{{ $found := false }}
+{{ range $projectLinks }}{{ if eq (strings.TrimSuffix "/" .url) (strings.TrimSuffix "/" $repository) }}{{ $found = true }}{{ end }}{{ end }}
+{{ if not $found }}{{ $projectLinks = $projectLinks | append (dict "label" "Source repository" "url" $repository) }}{{ end }}
+{{ end }}
+</section><section class="overview-facts"><h3>Project links</h3><ul>{{ range $projectLinks }}<li><a href="{{ .url }}" target="_blank" rel="noopener noreferrer">{{ .label }} ↗<small>{{ replaceRE `^https?://` "" .url }}</small></a></li>{{ end }}</ul>
+{{ if $projectLinks }}<p class="overview-footnote">Links from package metadata, recipe update rules, or reviewed upstream mappings.</p>{{ end }}
 </section></div>
 {{ partial "extension-setup.html" . }}
 </div>
-<div class="overview-license-columns"><section class="overview-card"><div class="overview-card-heading"><h3>Licenses</h3><a href="{{ printf "extensions/%s/licenses/" $e.name | relURL }}" data-open-view="licenses">Read notices →</a></div>
+<div class="overview-license-columns">{{ partial "extension-scorecard.html" . }}<div class="overview-license-sidebar"><section class="overview-card"><div class="overview-card-heading"><h3>Licenses</h3><a href="{{ printf "extensions/%s/licenses/" $e.name | relURL }}" data-open-view="licenses">Read notices →</a></div>
 <div class="recipe-license-row"><span class="overview-caption">Extension recipe</span><div class="license-chips">{{ range $e.declaredLicenses }}<span>{{ . }}</span>{{ else }}<span>Not recorded</span>{{ end }}</div></div>
 {{ if $available }}
 <p class="overview-caption">License expressions in the shipped package inventory</p>
@@ -24,11 +31,10 @@
 <p class="overview-footnote">Expressions retain AND / OR terms. A package may appear under more than one expression. LicenseRef names refer to custom terms.</p>
 {{ else }}<p class="overview-footnote">{{ if .upstream }}This image is published by CloudNativePG. A reliable SBOM inventory of its shipped dependencies is not available yet.{{ else }}Package license evidence is unavailable for this image.{{ end }}</p>{{ end }}
 </section>
-<div class="overview-license-sidebar"><section class="overview-card"><div class="overview-card-heading"><h3>Image license files</h3><a href="{{ printf "extensions/%s/licenses/" $e.name | relURL }}" data-open-view="licenses">View files →</a></div>
+<section class="overview-card"><div class="overview-card-heading"><h3>Image license files</h3><a href="{{ printf "extensions/%s/licenses/" $e.name | relURL }}" data-open-view="licenses">View files →</a></div>
 {{ if eq $p.containerNotices.status "available" }}<p>{{ len $p.containerNotices.files }} {{ if eq (len $p.containerNotices.files) 1 }}file{{ else }}files{{ end }} read directly from <code>/licenses</code> in the selected image. Browse their original contents and checksums in the Licenses tab.</p>
 {{ else if $p.noticeFiles }}<p>{{ len $p.noticeFiles }} license-file paths recorded in the SBOM. Image contents have not been retrieved for this selection.</p>{{ else }}<p>License-file inventory is unavailable for this selection.</p>{{ end }}</section>
-{{ if $available }}<section class="overview-card overview-evidence"><h3>Evidence</h3><ul><li><a href="{{ $p.sbom | relURL }}" download>Download SBOM ↓</a>{{ with hugo.Data.generated.generatedAt }} · {{ time.Format "2 Jan 2006, 15:04 UTC" . }}{{ end }}</li>{{ if eq $p.scan.status "scanned" }}<li><a href="{{ $p.scan.report | relURL }}" download>Download Grype report ↓</a> · {{ time.Format "2 Jan 2006, 15:04 UTC" $p.scan.scannedAt }}</li>{{ end }}{{ if eq $p.osvScan.status "scanned" }}<li><a href="{{ $p.osvScan.report | relURL }}" download>Download OSV report ↓</a> · {{ time.Format "2 Jan 2006, 15:04 UTC" $p.osvScan.scannedAt }}</li>{{ end }}</ul></section>{{ end }}
+<section class="overview-card overview-evidence"><h3>Evidence</h3>{{ if $available }}<ul><li><a href="{{ $p.sbom | relURL }}" download>Download SBOM ↓</a>{{ with hugo.Data.generated.generatedAt }} · {{ time.Format "2 Jan 2006, 15:04 UTC" . }}{{ end }}</li>{{ if eq $p.scan.status "scanned" }}<li><a href="{{ $p.scan.report | relURL }}" download>Download Grype report ↓</a> · {{ time.Format "2 Jan 2006, 15:04 UTC" $p.scan.scannedAt }}</li>{{ end }}{{ if eq $p.osvScan.status "scanned" }}<li><a href="{{ $p.osvScan.report | relURL }}" download>Download OSV report ↓</a> · {{ time.Format "2 Jan 2006, 15:04 UTC" $p.osvScan.scannedAt }}</li>{{ end }}</ul>{{ else }}<p class="overview-footnote">Unavailable</p>{{ end }}</section>
 </div></div>
 </div>
 </div>
-<section class="evidence-downloads image-details"><h3>Image details</h3><p class="image-reference"><code>{{ $v.reference }}</code></p>{{ with $v.packageURL }}<p><a href="{{ . }}" target="_blank" rel="noopener noreferrer">Browse image versions on GHCR ↗</a></p>{{ end }}<p>Platform digest: <code>{{ $p.digest }}</code></p><p><a href="{{ `security/` | relURL }}">Verify publisher signatures and inspect provenance →</a></p></section>

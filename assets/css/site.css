@@ -348,3 +348,16 @@ body[data-theme] .get-started-section .technical{margin-top:0}
 .version-group{overflow:visible}
 
 .version-build-line{row-gap:0}
+
+.overview-scorecard>p{font-size:14px;line-height:1.6}
+.scorecard-check{border-top:1px solid var(--line)}
+.scorecard-check summary{display:flex;align-items:center;gap:10px;min-height:44px;padding:9px 0;cursor:pointer;font-size:14px;list-style:none}
+.scorecard-check summary::-webkit-details-marker{display:none}
+.scorecard-check summary:before{content:'›';flex:none;transition:transform .15s}
+.scorecard-check[open] summary:before{transform:rotate(90deg)}
+.scorecard-check summary>span{overflow-wrap:anywhere}
+.scorecard-score{margin-left:auto;flex-shrink:0;min-width:4.5em;text-align:center;white-space:nowrap;font-weight:500;font-variant-numeric:tabular-nums}
+.scorecard-check-body{font-size:13px;line-height:1.6;overflow-wrap:anywhere;padding-bottom:12px}
+.scorecard-check-body p{margin:8px 0}
+.scorecard-check-body ul{padding-left:18px;max-height:20rem;overflow:auto}
+.scorecard-check summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

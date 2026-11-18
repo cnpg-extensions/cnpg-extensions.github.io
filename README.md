@@ -202,7 +202,14 @@ For testing, dispatch with `extensions=http,hypopg`; these artifacts are named
 `scorecard-results-test`, so a website consumer cannot mistake a subset for a complete local-list
 snapshot. Consumers should select the latest successful default-branch run's
 non-expired `scorecard-results` artifact and retain original report dates.
-This workflow produces artifacts only; website consumption/rendering is separate.
+The overview's OpenSSF scorecard panel uses the public OpenSSF API first, linking to
+the readable OpenSSF Scorecard viewer for that repository. If no usable API report is available, the website generator consumes
+this artifact and offers the original JSON as a download. When neither source is
+available it displays “Unavailable”. Report dates and individual check scores
+(including inconclusive results) are preserved; the aggregate score is not shown.
+Run `python scripts/scorecard_data.py` to refresh just this panel's data locally.
+Artifact retrieval uses `gh` with `GH_TOKEN` (or a local authenticated session);
+API lookup does not require authentication.
 
 The built-in GitHub token is used by default. Optional `SCORECARD_TOKEN` can supply
 additional API capacity; `SCORECARD_GITLAB_TOKEN` enables GitLab.com scans. Without

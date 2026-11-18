@@ -75,6 +75,7 @@ jobs:
       - name: Generate website data and retrieve missing assets
         id: generate
         env:
+          GH_TOKEN: ${{ github.token }}
           REBUILD_CACHE: ${{ inputs.rebuild_cache }}
           REFRESH_EXTENSION: ${{ inputs.refresh_extension }}
         run: |

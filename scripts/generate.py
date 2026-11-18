@@ -347,6 +347,8 @@ def main():
             tab_fm = dict(fm, view=view)
             tab_body=readme_html(text,repo,recipe['commit'],recipe['path'],routes,depth=3)
             (tab_directory/'index.md').write_text('---\n'+yaml.safe_dump(tab_fm,sort_keys=False)+'---\n'+tab_body+'\n')
+    from scorecard_data import generate_scorecards
+    generate_scorecards()
     from version_history import generate_history
     generate_history(entries, refresh_extension=args.refresh_extension)
     result={'generatedAt':NOW,'sourceRefreshedAt':source_refreshed_at,'commits':commits,'count':len(entries),'extensions':entries,'database':database}
