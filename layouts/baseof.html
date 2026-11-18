@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="{{ `assets/fonts/fonts.css` | relURL }}">
 {{ $css := slice (resources.Get "css/prototype.css") (resources.Get "css/site.css") | resources.Concat "css/site.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
-{{ $js := resources.Get "js/site.js" | minify | fingerprint }}
+{{ $js := (slice (resources.Get "js/site.js") (resources.Get "js/timestamps.js")) | resources.Concat "js/site-bundle.js" | minify | fingerprint }}
 <script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" defer></script>
 </head><body data-theme="hextra" data-font="nunito">
 <a class="skip" href="#main">Skip to content</a>

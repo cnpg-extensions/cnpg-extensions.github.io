@@ -2,7 +2,7 @@
 {{ $history := index hugo.Data.version_history .name }}
 {{ $images := .variants }}{{ with $history }}{{ with .builds }}{{ $images = . }}{{ end }}{{ end }}
 <div class="versions-heading"><div><h2>Versions</h2><p>Extension versions and the images built from them.</p></div>{{ with (index .variants 0).packageURL }}<a href="{{ . }}" target="_blank" rel="noopener noreferrer">Browse GHCR ↗</a>{{ end }}</div>
-<p class="versions-preview-note">{{ if hugo.IsServer }}Local design preview · {{ end }}{{ with $history }}Tagged GHCR builds fetched {{ time.Format "2 Jan 2006, 15:04 UTC" .fetchedAt }}.{{ else }}Showing current catalog images. Historical releases are not loaded.{{ end }}</p>
+<p class="versions-preview-note">{{ if hugo.IsServer }}Local design preview · {{ end }}{{ with $history }}Tagged GHCR builds fetched {{ partial "timestamp.html" .fetchedAt }}.{{ else }}Showing current catalog images. Historical releases are not loaded.{{ end }}</p>
 {{ $cutoff := time.AsTime "2026-11-10T00:00:00Z" }}
 {{ $visibleImages := slice }}
 {{ range $images }}
@@ -32,11 +32,11 @@
 {{ $items := index $groups . }}{{ $first := index $items 0 }}
 {{ $revision := index $first.annotations "org.opencontainers.image.revision" }}{{ $source := index $first.annotations "org.opencontainers.image.source" }}
 <article class="version-build version-build-compact">
-<div class="version-build-line"><time title="Build time in UTC" datetime="{{ index $first.annotations "org.opencontainers.image.created" }}">{{ with index $first.annotations "org.opencontainers.image.created" }}{{ time.Format "2 Jan 2006 15:04" . }}{{ else }}Date unavailable{{ end }}</time>
+<div class="version-build-line">{{ with index $first.annotations "org.opencontainers.image.created" }}{{ partial "timestamp.html" . }}{{ else }}<span>Date unavailable</span>{{ end }}
 {{ if and $source $revision }}<a href="{{ $source }}/commit/{{ $revision }}" target="_blank" rel="noopener noreferrer" title="Source commit"><code>{{ substr $revision 0 7 }}</code></a>{{ end }}
 <details class="build-digests"><summary>Digests</summary><div class="build-digest-list">{{ $ordered := slice }}{{ range $items }}{{ $rank := 2 }}{{ if eq .distro "trixie" }}{{ $rank = 0 }}{{ else if eq .distro "bookworm" }}{{ $rank = 1 }}{{ end }}{{ $pgOrder := 9999 }}{{ if findRE `^[0-9]+$` (printf "%v" .pg) }}{{ $pgOrder = sub 9999 (int .pg) }}{{ end }}{{ $ordered = $ordered | append (dict "image" . "order" (printf "%04d-%d-%s" $pgOrder $rank .distro)) }}{{ end }}{{ range sort $ordered "order" }}{{ with .image }}{{ $digest := index (split .reference "@") 1 }}<div><strong>PG {{ .pg }} · {{ .distro | title }}</strong><code title="{{ $digest }}" tabindex="0" aria-label="Image digest: {{ $digest }}">{{ $digest }}</code>{{ with .imageURL }}<a href="{{ . }}" target="_blank" rel="noopener noreferrer" title="Exact image version on GHCR">GHCR ↗</a>{{ end }}</div>{{ end }}{{ end }}</div></details>
 </div></article>
 {{ end }}
 </div></details>
 {{ end }}
-<p class="versions-history-note">{{ if $history }}Timestamp-tagged builds, newest first. Showing builds from 10 Nov 2026 onward. All dates are UTC. Image digests identify each build.{{ else }}Each version groups its published images. Load GHCR history to see earlier rebuilds.{{ end }}</p>
+<p class="versions-history-note">{{ if $history }}Timestamp-tagged builds, newest first. Showing builds from {{ partial "timestamp.html" "2026-11-10T00:00:00Z" }} onward. Image digests identify each build.{{ else }}Each version groups its published images. Load GHCR history to see earlier rebuilds.{{ end }}</p>

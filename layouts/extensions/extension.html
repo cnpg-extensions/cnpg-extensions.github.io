@@ -38,5 +38,5 @@
 </div>{{ end }}{{ end }}
 </section>{{ end }}
 {{ if or hugo.IsServer (index hugo.Data.version_history .Params.extension) }}<section id="versions" class="detail-view" hidden>{{ partial "extension-versions.html" $entry }}</section>{{ end }}
-<footer class="inventory-footer">{{ with hugo.Data.generated.sourceRefreshedAt }}Sources refreshed {{ time.Format "2 Jan 2006, 15:04 UTC" . }}.{{ else }}Source refresh time not recorded.{{ end }}</footer>
+<footer class="inventory-footer">{{ with hugo.Data.generated.sourceRefreshedAt }}Sources refreshed {{ partial "timestamp.html" . }}.{{ else }}Source refresh time not recorded.{{ end }}</footer>
 </article></div>{{ end }}

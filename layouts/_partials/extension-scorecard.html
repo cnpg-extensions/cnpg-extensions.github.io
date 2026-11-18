@@ -4,7 +4,7 @@
 <p><a href="https://github.com/ossf/scorecard/blob/main/docs/checks.md" target="_blank" rel="noopener noreferrer">View information about checks and how to fix failures.</a></p>
 {{ $report := index (hugo.Data.scorecards | default dict) .entry.name }}
 {{ if eq $report.status "available" }}
-<p class="overview-footnote">Scanned {{ time.Format "2 Jan 2006" $report.date }} · {{ if eq $report.source "OpenSSF API" }}<a href="{{ printf "https://scorecard.dev/viewer/?uri=%s" (replaceRE `^https?://` "" $report.repository | urlquery) }}" target="_blank" rel="noopener noreferrer">View OpenSSF report ↗</a>{{ else }}<a href="{{ $report.url | relURL }}" download>Download cached scan ↓</a>{{ end }}</p>
+<p class="overview-footnote">Scanned {{ partial "timestamp.html" $report.date }} · {{ if eq $report.source "OpenSSF API" }}<a href="{{ printf "https://scorecard.dev/viewer/?uri=%s" (replaceRE `^https?://` "" $report.repository | urlquery) }}" target="_blank" rel="noopener noreferrer">View OpenSSF report ↗</a>{{ else }}<a href="{{ $report.url | relURL }}" download>Download cached scan ↓</a>{{ end }}</p>
 <div class="scorecard-checks">
 {{ range $report.checks }}
 {{ if not (in (slice "Binary-Artifacts" "Packaging" "Signed-Releases") .name) }}

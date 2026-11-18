@@ -18,6 +18,7 @@ class VersionsTemplateTests(unittest.TestCase):
             (site / 'hugo.toml').write_text('baseURL = "https://example.org/"\n')
             shutil.copy(root / 'layouts/_partials/extension-versions.html', site / 'layouts/_partials')
             (site / 'layouts/index.html').write_text('{{ partial "extension-versions.html" hugo.Data.entry }}')
+            shutil.copy(root / 'layouts/_partials/timestamp.html', site / 'layouts/_partials')
             builds = []
             for pg in ['Unknown', '17', '18']:
                 builds.append({'version': '1.0', 'pg': pg, 'distro': 'trixie',

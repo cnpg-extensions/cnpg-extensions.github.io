@@ -1,0 +1,7 @@
+{{- $value := printf "%v" . -}}
+{{- if findRE `^\d{4}-\d{2}-\d{2}$` $value -}}
+<time datetime="{{ $value }}" title="The source provides a date only; time and time zone are unavailable.">{{ time.Format "2 Jan 2006" $value }} (date only; zone unavailable)</time>
+{{- else -}}
+{{- $instant := time.AsTime $value -}}
+<time data-local-time datetime="{{ $instant.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $instant.UTC.Format "2 Jan 2006, 15:04 MST" }}</time>
+{{- end -}}

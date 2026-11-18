@@ -1,7 +1,7 @@
 {{ $platform := .platform }}{{ $total := partial "advisory-total.html" (dict "platform" $platform) }}
 {{ with $platform }}
 
-<p class="inventory-result" role="status" aria-live="polite"><span data-filter-result>{{ len .packages }} packages</span>{{ with .scan }}{{ if eq .status "scanned" }} · Scanned {{ time.Format "2 Jan 2006" .scannedAt }}{{ else }} · Scan unavailable{{ end }}{{ end }}</p>
+<p class="inventory-result" role="status" aria-live="polite"><span data-filter-result>{{ len .packages }} packages</span>{{ with .scan }}{{ if eq .status "scanned" }} · Scanned {{ partial "timestamp.html" .scannedAt }}{{ else }} · Scan unavailable{{ end }}{{ end }}</p>
 <div class="dependency-table-scroll"><table class="dependency-table" data-scanned="{{ $total.available }}"><thead><tr><th scope="col">Package / installed version</th><th scope="col">License evidence</th><th scope="col">Advisories</th></tr></thead><tbody>
 {{ range .packages }}
 {{ $package := . }}{{ $files := slice }}{{ range .files }}{{ if and . (ne . "NOASSERTION") }}{{ $files = $files | append . }}{{ end }}{{ end }}
