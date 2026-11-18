@@ -7,7 +7,7 @@
 <p class="overview-footnote">Scanned {{ partial "timestamp.html" $report.date }} · {{ if eq $report.source "OpenSSF API" }}<a href="{{ printf "https://scorecard.dev/viewer/?uri=%s" (replaceRE `^https?://` "" $report.repository | urlquery) }}" target="_blank" rel="noopener noreferrer">View OpenSSF report ↗</a>{{ else }}<a href="{{ $report.url | relURL }}" download>Download cached scan ↓</a>{{ end }}</p>
 <div class="scorecard-checks">
 {{ range $report.checks }}
-{{ if not (in (slice "Binary-Artifacts" "Packaging" "Signed-Releases") .name) }}
+{{ if not (in (slice "Packaging" "Signed-Releases") .name) }}
 <details class="scorecard-check">
 <summary><span>{{ .name }}</span><strong class="badge scorecard-score">{{ if lt .score 0 }}Unknown{{ else }}{{ .score }}{{ end }}</strong></summary>
 <div class="scorecard-check-body">
