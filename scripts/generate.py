@@ -253,12 +253,15 @@ def main():
     mode.add_argument('--reuse-evidence', action='store_true', help='Local layout iteration only: reuse exact-digest evidence with original scan timestamps')
     mode.add_argument('--evidence-only', action='store_true', help='Scan one catalog partition and save its evidence and notices')
     mode.add_argument('--merge-evidence', action='store_true', help='Validate and assemble scanned catalog partitions')
+    parser.add_argument('--prepared-advisories', action='store_true', help='Scan with the verified workflow database snapshot')
     parser.add_argument('--merge-history', action='store_true', help='Use verified history retrieved in this workflow run')
     parser.add_argument('--shard-index', type=int, help='Zero-based index of the partition to scan')
     parser.add_argument('--shard-count', type=int, help='Total number of catalog partitions')
     parser.add_argument('--rebuild-cache', action='store_true', help='Ignore saved OCI assets, license notices, and version history')
     parser.add_argument('--refresh-extension', help='Refetch saved assets for one catalog extension')
     args=parser.parse_args()
+    if args.prepared_advisories and not args.scan:
+        parser.error('--prepared-advisories requires --scan')
     if args.refresh_extension and args.reuse_evidence:
         parser.error('--refresh-extension cannot be combined with --reuse-evidence')
     if args.evidence_only:
@@ -318,11 +321,18 @@ def main():
         if args.scan and (not grype or not shutil.which('osv-scanner')):raise RuntimeError('--scan requires Grype and OSV-Scanner')
         with phase("advisory refresh"):
             database={}
-            if grype:
-                p=subprocess.run([grype,'db','update'],capture_output=True,text=True)
-                if p.returncode: database={'error':'Vulnerability database update failed; no current scan is available.'}
-                else: database=json.loads(run(grype,'db','status','-o','json'))
-            osv_database=timed("OSV database refresh")(refresh_database)(ROOT) if args.scan else None
+            if args.prepared_advisories:
+                snapshot = json.loads((CACHE / 'advisory-databases.json').read_text())
+                osv_database = snapshot['osvDatabase']
+                database = json.loads(run(grype, 'db', 'status', '-o', 'json'))
+                if database_identity(database, osv_database) != database_identity(snapshot['database'], osv_database):
+                    raise RuntimeError('Installed Grype database differs from the prepared snapshot')
+            else:
+                if grype:
+                    p=subprocess.run([grype,'db','update'],capture_output=True,text=True)
+                    if p.returncode: database={'error':'Vulnerability database update failed; no current scan is available.'}
+                    else: database=json.loads(run(grype,'db','status','-o','json'))
+                osv_database=timed("OSV database refresh")(refresh_database)(ROOT) if args.scan else None
             if args.evidence_only:
                 database_identity(database, osv_database)
         images=[]

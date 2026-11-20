@@ -22,7 +22,37 @@ concurrency:
   cancel-in-progress: false
   queue: max
 jobs:
+  prepare-databases:
+    name: Prepare advisory databases
+    runs-on: ubuntu-26.04
+    env:
+      GRYPE_DB_CACHE_DIR: ${{ github.workspace }}/.cache/grype
+    outputs:
+      artifact: ${{ steps.snapshot.outputs.artifact }}
+      sha256: ${{ steps.snapshot.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/prepare-website
+        with:
+          rebuild-cache: 'true'
+      - name: Fetch and package advisory databases
+        id: snapshot
+        run: |
+          python scripts/prepare_advisories.py
+          tar -C .cache -czf advisory-databases.tar.gz grype osv-local-db advisory-databases.json
+          echo "sha256=$(sha256sum advisory-databases.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "artifact=advisory-databases-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.snapshot.outputs.artifact }}
+          path: advisory-databases.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
   inspect:
+    needs: prepare-databases
+    env:
+      GRYPE_DB_CACHE_DIR: ${{ github.workspace }}/.cache/grype
     name: Scan image shard ${{ matrix.shard }}
     runs-on: ubuntu-26.04
     timeout-minutes: 60
@@ -37,6 +67,17 @@ jobs:
       - uses: ./.github/actions/prepare-website
         with:
           rebuild-cache: ${{ inputs.rebuild_cache }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.prepare-databases.outputs.artifact }}
+      - name: Verify and unpack advisory databases
+        env:
+          SNAPSHOT_SHA256: ${{ needs.prepare-databases.outputs.sha256 }}
+        run: |
+          echo "$SNAPSHOT_SHA256  advisory-databases.tar.gz" | sha256sum --check --strict
+          mkdir -p .cache
+          tar -C .cache -xzf advisory-databases.tar.gz
+          rm advisory-databases.tar.gz
       - name: Inspect and scan current images
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,7 +85,7 @@ jobs:
           REFRESH_EXTENSION: ${{ inputs.refresh_extension }}
           SHARD_INDEX: ${{ matrix.shard }}
         run: |
-          args=(--refresh --scan --workers 4 --evidence-only --shard-index "$SHARD_INDEX" --shard-count 4)
+          args=(--refresh --scan --prepared-advisories --workers 4 --evidence-only --shard-index "$SHARD_INDEX" --shard-count 4)
           if [[ "$REBUILD_CACHE" == "true" ]]; then args+=(--rebuild-cache); fi
           if [[ -n "$REFRESH_EXTENSION" ]]; then args+=(--refresh-extension "$REFRESH_EXTENSION"); fi
           python scripts/generate.py "${args[@]}"
