@@ -9,13 +9,15 @@ import version_history as h
 OLD = '1.0-202611100000-18-trixie'
 NEW = '0.9-202611180000-18-trixie'  # A newer rebuild of an older version.
 DIGEST = 'sha256:' + 'a' * 64
+VERSIONS = 'https://github.com/orgs/org/packages/container/image/versions'
+CANONICAL = 'https://github.com/org/source/pkgs/container/image/versions'
 
 
-def page(tags, next_page=False):
+def page(tags, next_page=False, url=VERSIONS):
     html = ''.join(f'<div class="flex-column"><a href="/orgs/org/packages/container/image/123?tag={tag}">{tag}</a><clipboard-copy value="{DIGEST}"></clipboard-copy></div>' for tag in tags)
     if next_page:
         html += '<a class="next_page" href="/orgs/org/packages/container/image/versions?page=2">Next</a>'
-    return Mock(text=html)
+    return Mock(text=html, url=url)
 
 
 def cached():
@@ -23,13 +25,13 @@ def cached():
 
 
 class RecentVersionsTests(unittest.TestCase):
-    def test_mixed_page_does_not_stop_at_first_known_tag(self):
+    def test_overlap_stops_pagination_but_processes_rest_of_page(self):
         with patch.object(h.requests, 'Session') as factory:
             session = factory.return_value.__enter__.return_value
             session.get.side_effect = [page([OLD, NEW], True), page([OLD], True)]
             found = h.recent_builds('org/image', cached())
             self.assertEqual(set(found), {OLD, NEW})
-            self.assertEqual(session.get.call_count, 2)
+            self.assertEqual(session.get.call_count, 1)
 
     def test_known_page_stops_without_following_next_link(self):
         with patch.object(h.requests, 'Session') as factory:
@@ -40,7 +42,7 @@ class RecentVersionsTests(unittest.TestCase):
 
     def test_invalid_html_fails_instead_of_claiming_freshness(self):
         with patch.object(h.requests, 'Session') as factory:
-            factory.return_value.__enter__.return_value.get.return_value = Mock(text='<html>Login required</html>')
+            factory.return_value.__enter__.return_value.get.return_value = Mock(text='<html>Login required</html>', url=VERSIONS)
             with self.assertRaisesRegex(ValueError, 'No timestamped'):
                 h.recent_builds('org/image', cached())
 
@@ -105,6 +107,39 @@ class RecentVersionsTests(unittest.TestCase):
         with patch.object(h.requests, 'Session') as factory:
             session = factory.return_value.__enter__.return_value
             session.get.return_value = response
+            with self.assertRaisesRegex(ValueError, 'pagination'):
+                h.recent_builds('org/image', cached())
+            self.assertEqual(session.get.call_count, 1)
+
+    def test_redirected_pagination_preserves_organization_build_links(self):
+        first = page([NEW], True, CANONICAL)
+        first.text = first.text.replace('/orgs/org/packages/container/image/versions?page=2', '?page=2')
+        with patch.object(h.requests, 'Session') as factory:
+            session = factory.return_value.__enter__.return_value
+            session.get.side_effect = [first, page([OLD], url=CANONICAL + '?page=2')]
+            found = h.recent_builds('org/image', cached())
+            self.assertEqual(set(found), {NEW, OLD})
+            self.assertTrue(found[NEW]['imageURL'].startswith(VERSIONS.removesuffix('/versions')))
+            self.assertEqual(session.get.call_count, 2)
+            self.assertEqual(session.get.call_args.args[0], CANONICAL + '?page=2')
+
+    def test_unrelated_redirects_rejected(self):
+        for url in ['https://example.com/versions', CANONICAL.replace('/org/', '/other/'),
+                    CANONICAL.replace('/image/', '/other/'), 'https://github.com/orgs/org/packages',
+                    CANONICAL.replace('https:', 'http:')]:
+            with self.subTest(url=url), patch.object(h.requests, 'Session') as factory:
+                session = factory.return_value.__enter__.return_value
+                session.get.return_value = page([OLD], url=url)
+                with self.assertRaisesRegex(ValueError, 'redirect'):
+                    h.recent_builds('org/image', cached())
+
+    def test_redirect_does_not_allow_unrelated_pagination(self):
+        first = page([NEW], True, CANONICAL)
+        first.text = first.text.replace('/orgs/org/packages/container/image/versions?page=2',
+                                        '/org/other/pkgs/container/image/versions?page=2')
+        with patch.object(h.requests, 'Session') as factory:
+            session = factory.return_value.__enter__.return_value
+            session.get.return_value = first
             with self.assertRaisesRegex(ValueError, 'pagination'):
                 h.recent_builds('org/image', cached())
             self.assertEqual(session.get.call_count, 1)

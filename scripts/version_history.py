@@ -154,13 +154,17 @@ def add_image_links(builds):
 
 
 def recent_builds(repository, cached):
-    """Discover newest package versions, stopping after a fully cached build page.
+    """Discover newest package versions, processing a whole page until cache overlap.
 
     This is a website-ordering optimization, not an OCI ordering guarantee.
     A periodic registry reconciliation repairs older changes and deletions.
     """
     package = image_package_url('ghcr.io/' + repository + ':unused')
     prefix = urlsplit(package.replace('/package/', '/') + '/versions').path
+    owner, package_name = prefix.removeprefix('/orgs/').split('/packages/container/', 1)
+    canonical_pattern = re.compile(
+        '/' + re.escape(owner) + r'/[^/]+/pkgs/container/' + re.escape(package_name))
+    pagination_path = prefix
     url = 'https://github.com' + prefix + '?filters%5Bversion_type%5D=tagged'
     found = {}
     visited = set()
@@ -169,11 +173,19 @@ def recent_builds(repository, cached):
             total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])))
         while url:
             parsed = urlsplit(url)
-            if parsed.scheme != 'https' or parsed.netloc != 'github.com' or parsed.path != prefix or url in visited:
+            if parsed.scheme != 'https' or parsed.netloc != 'github.com' or parsed.path != pagination_path or url in visited:
                 raise ValueError('Unexpected package pagination URL')
             visited.add(url)
             response = session.get(url, timeout=60)
             response.raise_for_status()
+            target = urlsplit(response.url)
+            # GitHub redirects organization package pages to their linked repo.
+            # Pin pagination to that verified path, keeping build links separate.
+            if (target.scheme != 'https' or target.netloc != 'github.com'
+                    or (target.path != pagination_path and not (
+                        len(visited) == 1 and canonical_pattern.fullmatch(target.path)))):
+                raise ValueError('Unexpected package redirect URL')
+            pagination_path = target.path
             soup = BeautifulSoup(response.text, 'html.parser')
             page = {}
             for anchor in soup.select('a[href]'):
@@ -192,12 +204,12 @@ def recent_builds(repository, cached):
                     raise ValueError('Package build is missing its digest')
                 page[tag] = {'digest': digest, 'imageURL': link}
             found.update(page)
-            if page and all(tag in cached and cached[tag].get('imageURL')
+            if any(tag in cached and cached[tag].get('imageURL')
                             and cached[tag]['reference'].split('@')[1] == item['digest']
                             for tag, item in page.items()):
                 break
             next_link = soup.select_one('a.next_page[href]')
-            url = urljoin('https://github.com', next_link['href']) if next_link else None
+            url = urljoin(response.url, next_link['href']) if next_link else None
         if not found:
             raise ValueError('No timestamped builds found on package pages')
     print(f'{repository}: checked {len(visited)} package pages', flush=True)
