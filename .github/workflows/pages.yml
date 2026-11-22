@@ -22,6 +22,17 @@ concurrency:
   cancel-in-progress: false
   queue: max
 jobs:
+  sources:
+    name: Resolve catalog source commits
+    runs-on: ubuntu-26.04
+    outputs:
+      commits: ${{ steps.resolve.outputs.commits }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: resolve
+        run: |
+          commits=$(python3 scripts/source_commits.py)
+          echo "commits=$commits" >> "$GITHUB_OUTPUT"
   prepare-databases:
     name: Prepare advisory databases
     runs-on: ubuntu-26.04
@@ -50,8 +61,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   inspect:
-    needs: prepare-databases
+    needs: [prepare-databases, sources]
     env:
+      CATALOG_SOURCE_COMMITS: ${{ needs.sources.outputs.commits }}
       GRYPE_DB_CACHE_DIR: ${{ github.workspace }}/.cache/grype
     name: Scan image shard ${{ matrix.shard }}
     runs-on: ubuntu-26.04
@@ -104,6 +116,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 1
   history:
+    needs: sources
+    env:
+      CATALOG_SOURCE_COMMITS: ${{ needs.sources.outputs.commits }}
     name: Refresh version history
     runs-on: ubuntu-26.04
     timeout-minutes: 60
@@ -135,7 +150,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 1
   build:
-    needs: [inspect, history]
+    needs: [inspect, history, sources]
+    env:
+      CATALOG_SOURCE_COMMITS: ${{ needs.sources.outputs.commits }}
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-26.04
     timeout-minutes: 60

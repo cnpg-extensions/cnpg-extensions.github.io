@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from collections import Counter
 from build_timing import timed, phase
 from evidence_shards import database_identity, merge_shards, shard_path
+from source_commits import REPOS
 from image_notices import container_notices
 from osv_scan import scan_osv_batch, refresh_database
 from guide_layout import getting_started
@@ -21,7 +22,6 @@ from urllib3.util.retry import Retry
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / '.cache'
 REPORTS = ROOT / 'static/reports'
-REPOS = {'source':'cnpg-extensions/postgres-extensions-containers', 'upstream':'cloudnative-pg/postgres-extensions-containers', 'artifacts':'cnpg-extensions/artifacts'}
 NOW = datetime.now(timezone.utc).isoformat(timespec='seconds')
 
 def run(*args):
@@ -37,7 +37,15 @@ def source_refresh_time(refreshed, commits, previous, now):
 @timed("checkout")
 def checkout(name, refresh):
     path = CACHE/name
-    if not (path/'.git').exists():
+    if 'CATALOG_SOURCE_COMMITS' in os.environ:
+        commit = json.loads(os.environ['CATALOG_SOURCE_COMMITS'])[name]
+        if not re.fullmatch(r'[0-9a-f]{40}', commit):
+            raise ValueError(f'Invalid pinned source commit for {name}')
+        url = f'https://github.com/{REPOS[name]}.git'
+        subprocess.run(['git', 'init', '--quiet', str(path)], check=True)
+        subprocess.run(['git', '-C', str(path), 'fetch', '--depth', '1', url, commit], check=True)
+        subprocess.run(['git', '-C', str(path), 'checkout', '--detach', commit], check=True)
+    elif not (path/'.git').exists():
         subprocess.run(['git','clone','--depth','1',f'https://github.com/{REPOS[name]}.git',str(path)],check=True)
     elif refresh:
         subprocess.run(['git','-C',str(path),'fetch','--depth','1','origin','main'],check=True)
