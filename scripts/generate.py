@@ -200,7 +200,6 @@ def readme_html(text, repo, commit, path, routes, depth=2):
     html=markdown.markdown(text,extensions=['fenced_code','tables','toc'])
     soup=BeautifulSoup(html,'html.parser')
     # GitHub alert markers are not part of Python Markdown's blockquote syntax.
-    alert_icons={'NOTE':'ⓘ','TIP':'☞','IMPORTANT':'!','WARNING':'⚠','CAUTION':'⚠'}
     for quote in soup.find_all('blockquote'):
         first=quote.find('p',recursive=False)
         if not first or not first.contents or not isinstance(first.contents[0],str):
@@ -215,7 +214,7 @@ def readme_html(text, repo, commit, path, routes, depth=2):
         quote['class']=['github-alert','github-alert-'+kind.lower()]
         title=soup.new_tag('p',attrs={'class':'github-alert-title'})
         icon=soup.new_tag('span',attrs={'class':'github-alert-icon','aria-hidden':'true'})
-        icon.string=alert_icons[kind];title.append(icon);title.append(' '+kind.title())
+        title.append(icon);title.append(' '+kind.title())
         quote.insert(0,title)
     for a in soup.find_all(['a','img']):
         key='href' if a.name=='a' else 'src'; link=a.get(key,'')

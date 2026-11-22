@@ -164,7 +164,11 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
 
 .prose .github-alert{padding:14px 18px;margin:24px 0;border-left:4px solid var(--accent);background:var(--soft)}
 .prose .github-alert .github-alert-title{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--accent);margin:0 0 8px}
-.github-alert-icon{font-family:Arial,"Segoe UI Symbol",sans-serif;font-size:22px;line-height:1}
+.github-alert-note{--alert-icon:url("../assets/callouts/note.svg")}
+.github-alert-tip{--alert-icon:url("../assets/callouts/tip.svg")}
+.github-alert-important{--alert-icon:url("../assets/callouts/important.svg")}
+.github-alert-warning,.github-alert-caution{--alert-icon:url("../assets/callouts/warning.svg")}
+.github-alert-icon{width:18px;height:18px;flex:none;background:currentColor;mask:var(--alert-icon) center/contain no-repeat;forced-color-adjust:none}
 .prose .github-alert>p:last-child{margin-bottom:0}
 
 .guide-outline a.outline-subheading{padding-left:24px;font-size:13px}
