@@ -44,11 +44,14 @@ def build_fixture(site):
             })
         variants.append({'pg': pg, 'distro': distro, 'version': version, 'annotations': {},
                          'reference': 'ghcr.io/cnpg-extensions/fixture@sha256:' + str(pg) * 32,
+                         'projectLinks': [{'label': 'Upstream repository', 'url': 'https://github.com/example/fixture.git'},
+                                          {'label': 'Upstream homepage', 'url': 'https://fixture.example.org'}],
                          'platforms': platforms})
     variants.sort(key=variant_order)
     entry = {'name': 'fixture', 'title': 'Version selector fixture', 'sqlName': 'fixture',
              'description': 'Synthetic PG18/PG19 validation data, not a published extension.',
              'publisher': 'cnpg-extensions', 'build': 'Debian', 'declaredLicenses': ['MIT'],
+             'sourceRepository': {'repository': 'https://github.com/example/fixture'},
              'source': 'https://example.org/readme', 'variants': variants,
              'version': variants[0]['version'], 'pgVersions': [18, 19], 'distros': ['bookworm', 'trixie']}
     (site / 'data').mkdir(exist_ok=True)
@@ -97,6 +100,11 @@ class ImageSelectionTemplateTests(unittest.TestCase):
                 distro, pg = variant.split('-pg')
                 self.assertEqual(option.get_text(), f'PG {pg} · {distro.title()} · {arch}')
                 panel = soup.select_one(f'#overview .inventory-panel[data-variant="{variant}"][data-architecture="{arch}"]')
+                source = panel.select('a[href="https://github.com/example/fixture"]')
+                self.assertEqual(len(source), 1)
+                self.assertIn('Source code', source[0].get_text())
+                self.assertIsNotNone(panel.select_one('a[href="https://fixture.example.org"]'))
+                self.assertIsNone(panel.select_one('a[href$="fixture.git"]'))
                 facts = {dt.get_text(): dt.find_next_sibling('dd').get_text(' ', strip=True) for dt in panel.select('dt')}
                 version, sql = ('1.8.4', '1.8') if pg == '18' else ('2.0.1', '2.0')
                 self.assertEqual(facts['Extension version'], version)

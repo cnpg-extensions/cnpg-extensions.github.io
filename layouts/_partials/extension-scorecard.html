@@ -19,5 +19,5 @@
 {{ end }}
 {{ end }}
 </div>
-{{ else }}<p class="overview-footnote">Unavailable</p>{{ end }}
+{{ else }}<p class="overview-footnote"><strong>Unavailable.</strong> {{ $report.reason | default "No report was available when the catalog was built." }}</p>{{ end }}
 </section>

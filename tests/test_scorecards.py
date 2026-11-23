@@ -3,12 +3,16 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"scripts"))
 spec = importlib.util.spec_from_file_location('scorecards', Path(__file__).resolve().parents[1]/'scripts/scan-scorecards.py')
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
+import yaml
+from scorecard_repositories import catalog_variants, project_links, repository_mapping
 
 
 class ScorecardTests(unittest.TestCase):
@@ -37,8 +41,11 @@ class ScorecardTests(unittest.TestCase):
 
     def test_catalog_deduplicates_variants(self):
         with tempfile.TemporaryDirectory() as tmp:
-            Path(tmp, 'catalog-test.yaml').write_text('spec:\n  images:\n  - extensions: [{name: pgvector}, {name: http}]\n  - extensions: [{name: pgvector}]\n')
-            self.assertEqual(m.catalog_names(tmp), {'pgvector', 'http'})
+            extension = {'name': 'new-extension', 'image': {'reference': 'ghcr.io/cnpg-extensions/new'}}
+            doc = {'metadata': {'labels': {'images.cnpg.io/os': 'trixie'}},
+                   'spec': {'images': [{'extensions': [extension]}, {'extensions': [extension]}]}}
+            Path(tmp, 'catalog-test.yaml').write_text(yaml.safe_dump(doc))
+            self.assertEqual(catalog_variants(tmp), {'new-extension': {('cnpg-extensions', 'trixie')}})
 
     def test_diagnostics_redact_token(self):
         with patch.dict(m.os.environ, {'GITHUB_AUTH_TOKEN': 'secret-value'}):
@@ -60,18 +67,33 @@ class ScorecardTests(unittest.TestCase):
             self.assertEqual(result['exitCode'], 1)
             self.assertEqual(result['inconclusiveChecks'], 1)
 
-    def test_only_explicit_list_is_scanned(self):
-        self.assertEqual(m.scan_targets({'http', 'pgvector', 'new-extension'}, ['http'], set()), ['http'])
-        with self.assertRaisesRegex(ValueError, 'not in local scan list'):
-            m.scan_targets({'http', 'pgvector'}, ['http'], {'pgvector'})
+    @patch('scorecard_repositories.upstream_links', return_value=[])
+    def test_package_homepage_discovery(self, lookup):
+        links = project_links('// renovate: suite=trixie-pgdg depName=postgresql-18-documentdb',
+                                {'postgresql-18-documentdb': {'Version': '1', 'Homepage': 'https://github.com/documentdb/documentdb'}}, 'trixie')
+        self.assertEqual(repository_mapping(links)['repository'], 'https://github.com/documentdb/documentdb')
 
-    def test_local_subset_and_removed_catalog_entry(self):
-        self.assertEqual(m.scan_targets({'http', 'hypopg'}, ['http', 'hypopg'], {'http'}), ['http'])
-        with self.assertRaisesRegex(ValueError, 'absent from catalog'):
-            m.scan_targets({'http'}, ['http', 'hypopg'], set())
+    def test_renovate_precedence_and_ambiguous_fallback(self):
+        recipe = '// renovate: datasource=github-tags depName=example/upstream'
+        links = project_links(recipe, {}, 'trixie')
+        fallback = {'repository': 'https://github.com/example/reviewed'}
+        self.assertEqual(repository_mapping(links, fallback)['repository'], 'https://github.com/example/upstream')
+        links.extend(project_links('// renovate: datasource=gitlab-releases depName=other/project', {}, 'trixie'))
+        self.assertEqual(repository_mapping(links, fallback), fallback)
+        self.assertIsNone(repository_mapping(links))
 
-    def test_reviewed_list(self):
-        names = json.loads((m.ROOT/'data/scorecard-local-scans.json').read_text())['extensions']
-        mappings = json.loads((m.ROOT/'data/scorecard-repositories.json').read_text())
-        self.assertEqual(len(names), len(set(names)))
-        self.assertTrue(set(names) <= set(mappings))
+    def test_git_tags_and_salsa_source_discovery(self):
+        links = project_links('# renovate: datasource=git-tags depName=https://github.com/neondatabase/pg_session_jwt.git', {}, 'trixie')
+        self.assertEqual(repository_mapping(links)['repository'], 'https://github.com/neondatabase/pg_session_jwt')
+        source = {'label': 'Upstream release repository', 'url': 'https://salsa.debian.org/team/source', 'evidence': 'watch'}
+        self.assertEqual(repository_mapping([source])['repository'], source['url'])
+        self.assertIn('salsa.debian.org', m.scan_skip_reason(repository_mapping([source])))
+
+    def test_archive_only_watch_does_not_select_a_metadata_mirror(self):
+        mirror = 'https://github.com/example/mirror'
+        links = [{'label': 'Debian release watch', 'url': 'https://example.org/tarball', 'evidence': 'watch'},
+                 {'label': 'Debian upstream repository', 'url': mirror, 'evidence': 'metadata'}]
+        self.assertIsNone(repository_mapping(links))
+        canonical = {'repository': 'https://git.example.org/source', 'mirrors': [mirror]}
+        self.assertEqual(repository_mapping(links[1:], canonical), canonical)
+        self.assertIn('git.example.org', m.scan_skip_reason(canonical))

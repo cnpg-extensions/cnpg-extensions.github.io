@@ -2,7 +2,8 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from overview_metadata import deb_identity, license_summary, valid_url, setup_metadata
+from overview_metadata import deb_identity, license_summary, setup_metadata
+from scorecard_repositories import valid_url
 
 class OverviewMetadataTests(unittest.TestCase):
     def test_license_expressions_preserved_and_package_not_double_counted(self):

@@ -8,13 +8,14 @@ from collections import Counter
 from build_timing import timed, phase
 from evidence_shards import database_identity, merge_shards, shard_path
 from source_commits import REPOS
+from scorecard_repositories import publisher_for
 from image_notices import container_notices
 from osv_scan import scan_osv_batch, refresh_database
 from guide_layout import getting_started
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit, parse_qs, unquote, quote
-import requests, yaml, hcl2, markdown
-from hcl2.utils import SerializationOptions
+import requests, yaml, markdown
+from catalog_recipes import find_recipe, recipe_index
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -389,32 +390,15 @@ def main():
         return
 
     with phase("page content"):
-        recipes={};routes={}
-        for src in ['upstream','source']:
-            for path in (CACHE/src).rglob('metadata.hcl'):
-                if '.git' in path.parts:continue
-                try:
-                    with path.open() as f: meta=hcl2.load(f,serialization_options=SerializationOptions(strip_string_quotes=True,with_comments=False)).get('metadata',{})
-                except Exception: continue
-                name=meta.get('name') or meta.get('image_name')
-                if not isinstance(name,str) or not (path.parent/'README.md').exists():continue
-                rel=(path.parent/'README.md').relative_to(CACHE/src).as_posix()
-                recipes[(REPOS[src],name)]={'meta':meta,'readme':path.parent/'README.md','repo':REPOS[src],'commit':commits[src],'path':rel,
-                    'build':meta.get('build_system') or ('PGRX' if rel.startswith('pgrx/') else 'Universe' if rel.startswith('universe/') else 'Debian')}
-                routes[(REPOS[src],rel)]='extensions/'+name
-            routes[(REPOS[src],'README.md')]='get-started'
+        recipes,routes=recipe_index(CACHE, commits)
         entries=[]
         content=ROOT/'content/extensions';content.mkdir(parents=True,exist_ok=True)
         for old in content.glob('*/index.md'): old.unlink()
         for name in sorted({j['name'] for j in jobs}):
             variants=sorted([i for i in images if i['name']==name],key=variant_order)
-            publisher='cloudnative-pg' if '/cloudnative-pg/' in variants[0]['reference'] else 'cnpg-extensions'
-            repo=publisher+'/postgres-extensions-containers';recipe=recipes.get((repo,name))
-            if not recipe:
-                # Some upstream recipes use a different image_name. Match README directory from the catalog name.
-                source='upstream' if publisher=='cloudnative-pg' else 'source'
-                found=list((CACHE/source).rglob(name+'/README.md'))
-                if found: recipe={'meta':{},'readme':found[0],'repo':repo,'commit':commits[source],'path':found[0].relative_to(CACHE/source).as_posix(),'build':'Debian'}
+            publisher=publisher_for(variants[0]['reference'])
+            repo=publisher+'/postgres-extensions-containers'
+            recipe=find_recipe(CACHE, recipes, publisher, name, commits)
             if not recipe: raise RuntimeError('No source README found for published extension '+name)
             text=recipe['readme'].read_text()
             soup=BeautifulSoup(markdown.markdown(text),'html.parser');first=soup.find('p')
@@ -436,8 +420,6 @@ def main():
                 tab_directory.mkdir(exist_ok=True)
                 tab_fm = dict(fm, view=view)
                 (tab_directory/'index.md').write_text('---\n'+yaml.safe_dump(tab_fm,sort_keys=False)+'---\n'+tab_body+'\n')
-    from scorecard_data import generate_scorecards
-    timed("scorecards")(generate_scorecards)()
     from version_history import generate_history
     if args.merge_history:
         from history_evidence import verify
@@ -456,6 +438,8 @@ def main():
     (ROOT/'content/getting-started.md').write_text('---\ntitle: Get started\nurl: /get-started/\naliases: [/getting-started/]\ndescription: Configure alerts, install the catalog, and enable extensions in your databases.\n---\n'+
         getting_started(readme_html(requirements+'\n\n'+quick,REPOS['source'],commits['source'],'README.md',routes,depth=1)))
     subprocess.run([sys.executable, str(ROOT/'scripts/overview_metadata.py')], check=True)
+    from scorecard_data import generate_scorecards
+    timed("scorecards")(generate_scorecards)()
     print(f'Generated {len(entries)} extension pages from {len(images)} catalog images',flush=True)
 
 if __name__=='__main__':main()

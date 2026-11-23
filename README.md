@@ -260,14 +260,17 @@ Locally, use `--rebuild-cache` or `--refresh-extension NAME`. Advisory scans sti
 
 `scorecards.yml` runs every Monday at 08:17 UTC and supports manual dispatch.
 Both triggers run fresh scans with the pinned Scorecard version, using the current published
-catalog and reviewed upstream mappings in `data/scorecard-repositories.json`.
-Only extensions explicitly listed in `data/scorecard-local-scans.json` are scanned.
-The initial list contains the 76 supported-host extensions without an OpenSSF API
-report in the November 17, 2026 audit, including seven with older deps.dev reports.
-The 26 entries with OpenSSF reports and Salsa-hosted debversion are excluded.
-The list does not change when OpenSSF coverage changes: add/remove entries manually.
-New catalog entries are not automatically added. The full repository mapping remains
-available for looking up externally published reports.
+catalog to select extensions. The scan and the website prefer the Debian release watch
+(`debian/watch`) and recognize repository URLs in Renovate rules, including
+`git-tags`. Debian upstream declarations and repository homepages are used only
+in the absence of a watch. A tarball-only watch does not identify a repository.
+The resolver checks the packaging archive against the PGDG source index's SHA-256.
+Source discovery recognizes Debian Salsa. Scans target supported upstream repositories and skip known mirrors.
+The project links section shows the resolved repository as **Source code** and
+retains distinct homepage URLs. Catalog generation and the scanner call the
+same discovery function with their checked-out published catalog and recipes.
+Missing or conflicting repository evidence uses the reviewed fallbacks in `data/scorecard-repositories.json`. Unresolved
+extensions appear as unavailable. Extensions sharing a repository share a scan.
 The scanner never builds upstream code. See the user-runnable command on the
 Security page before changing the automated command.
 
@@ -276,16 +279,16 @@ Each run uploads `scorecard-results` with **21-day retention**. It contains an
 plus unmodified JSON reports keyed by repository URL hash. Scores are not adjusted.
 There is no release asset or automatic deletion of previous runs. Failed checks
 remain in the raw report; repository failures and unsupported hosts are explicit
-in the index. A run with no reports fails but uploads its diagnostic index.
+in the index. A run that attempts scans and produces no reports fails. A selection consisting entirely of skipped entries records its reasons and succeeds.
 
 For testing, dispatch with `extensions=http,hypopg`; these artifacts are named
-`scorecard-results-test`, so a website consumer cannot mistake a subset for a complete local-list
+`scorecard-results-test`, so a website consumer cannot mistake a subset for a complete catalog
 snapshot. Consumers should select the latest successful default-branch run's
 non-expired `scorecard-results` artifact and retain original report dates.
 The overview's OpenSSF scorecard panel uses the public OpenSSF API first, linking to
 the readable OpenSSF Scorecard viewer for that repository. If no usable API report is available, the website generator consumes
 this artifact and offers the original JSON as a download. When neither source is
-available it displays “Unavailable”. Report dates and individual check scores
+available the panel explains the discovery or coverage limitation. Report dates and individual check scores
 (including inconclusive results) are preserved; the aggregate score is not shown.
 Run `python scripts/scorecard_data.py` to refresh just this panel's data locally.
 Artifact retrieval uses `gh` with `GH_TOKEN` (or a local authenticated session);

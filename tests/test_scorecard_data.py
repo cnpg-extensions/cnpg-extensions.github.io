@@ -2,9 +2,11 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import sys
 import unittest
 from unittest.mock import Mock, patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"scripts"))
 spec = importlib.util.spec_from_file_location('scorecard_data', Path(__file__).resolve().parents[1] / 'scripts/scorecard_data.py')
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
@@ -31,6 +33,23 @@ class ScorecardDataTests(unittest.TestCase):
             self.assertEqual(result['source'], 'Cached scan')
             self.assertEqual((Path(directory) / Path(result['url']).name).read_text(), raw)
             self.assertEqual(result['date'], REPORT['date'])
+
+    def test_skipped_projects_explain_missing_reports_without_lookups(self):
+        entries = [
+            {'name': 'salsa', 'sourceRepository': {'repository': 'https://salsa.debian.org/team/project'}},
+            {'name': 'deferred', 'sourceRepository': {'repository': REPO, 'scanSkipReason': 'Waiting for a release watch.'}},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'data'
+            data.mkdir()
+            (data / 'generated.json').write_text(json.dumps({'extensions': entries}))
+            with patch.object(m, 'ROOT', root), patch.object(m, 'cached_reports', return_value={}), patch.object(m, 'resolve') as resolve:
+                m.generate_scorecards()
+            resolve.assert_not_called()
+            results = json.loads((data / 'scorecards.json').read_text())
+            self.assertIn('salsa.debian.org', results['salsa']['reason'])
+            self.assertEqual(results['deferred']['reason'], 'Waiting for a release watch.')
 
     def test_wrong_repository_report_is_unavailable(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(m.requests, 'get', return_value=Mock(json=lambda: REPORT)):

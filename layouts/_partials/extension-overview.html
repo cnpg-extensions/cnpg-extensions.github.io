@@ -10,11 +10,15 @@
 </div>
 <div class="overview-top-facts"><div class="overview-package-column"><section class="overview-facts"><h3>Package details</h3><dl><dt>Extension version</dt><dd>{{ $v.version }}</dd><dt>Image built</dt><dd>{{ with index $v.annotations "org.opencontainers.image.created" }}{{ partial "timestamp.html" . }}{{ else }}Unavailable{{ end }}</dd><dt>Publisher</dt><dd>{{ $e.publisher }}</dd><dt>Build</dt><dd>{{ $e.build }}</dd><dt>Platform</dt><dd>PG {{ $v.pg }} · {{ $v.distro | title }} · {{ $p.architecture }}</dd></dl>
 {{ $projectLinks := $v.projectLinks | default slice }}
-{{ $scorecard := index (hugo.Data.scorecards | default dict) $e.name }}
-{{ with $scorecard.repository }}
-{{ $repository := . }}{{ $found := false }}
-{{ range $projectLinks }}{{ if eq (strings.TrimSuffix "/" .url) (strings.TrimSuffix "/" $repository) }}{{ $found = true }}{{ end }}{{ end }}
-{{ if not $found }}{{ $projectLinks = $projectLinks | append (dict "label" "Source repository" "url" $repository) }}{{ end }}
+{{ with $e.sourceRepository }}
+  {{ $links := slice (dict "label" "Source code" "url" .repository) }}
+  {{ $repository := strings.TrimSuffix ".git" (strings.TrimSuffix "/" .repository) }}
+  {{ range $projectLinks }}
+    {{ if and (ne (strings.TrimSuffix ".git" (strings.TrimSuffix "/" .url)) $repository) (not (in (slice "Debian upstream repository" "Upstream release repository" "Upstream repository") .label)) }}
+      {{ $links = $links | append . }}
+    {{ end }}
+  {{ end }}
+  {{ $projectLinks = $links }}
 {{ end }}
 </section><section class="overview-facts"><h3>Project links</h3><ul>{{ range $projectLinks }}<li><a href="{{ .url }}" target="_blank" rel="noopener noreferrer">{{ .label }} ↗<small>{{ replaceRE `^https?://` "" .url }}</small></a></li>{{ end }}</ul>
 {{ if $projectLinks }}<p class="overview-footnote">Links from package metadata, recipe update rules, or reviewed upstream mappings.</p>{{ end }}

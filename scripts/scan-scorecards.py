@@ -9,20 +9,10 @@ import os
 from pathlib import Path
 import subprocess
 from urllib.parse import urlsplit
-import yaml
+
+from scorecard_repositories import discover_projects, scan_skip_reason
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def catalog_names(directory):
-    names = set()
-    for path in sorted(Path(directory).glob('catalog-*.yaml')):
-        doc = yaml.safe_load(path.read_text())
-        for image in doc['spec']['images']:
-            names.update(e['name'] for e in image.get('extensions', []))
-    if not names:
-        raise ValueError('Catalog contains no extensions')
-    return names
 
 
 def diagnostic(text):
@@ -62,40 +52,30 @@ def scan(repository, binary, output, timeout):
         return {'status': 'unavailable', 'reason': type(exc).__name__}
 
 
-def scan_targets(catalog, configured, requested):
-    if set(configured) - catalog:
-        raise ValueError('Configured extensions absent from catalog: '+', '.join(sorted(set(configured)-catalog)))
-    if requested - set(configured):
-        raise ValueError('Extensions not in local scan list: '+', '.join(sorted(requested-set(configured))))
-    return sorted(requested or configured)
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--catalog-dir', required=True)
+    parser.add_argument('--recipe-cache', type=Path, default=ROOT/'.cache', help='Directory containing source and upstream checkouts')
     parser.add_argument('--output', default='scorecard-results')
-    parser.add_argument('--extensions', default='', help='Comma-separated subset of local scan list; empty scans the complete list')
+    parser.add_argument('--extensions', default='', help='Comma-separated catalog extension names; empty scans the complete catalog')
     parser.add_argument('--binary', default='scorecard')
     parser.add_argument('--workers', type=int, default=2)
     parser.add_argument('--timeout', type=int, default=300)
     args = parser.parse_args()
     if not 1 <= args.workers <= 4:
         parser.error('workers must be between 1 and 4')
-    names = catalog_names(args.catalog_dir)
     selected = {n.strip() for n in args.extensions.split(',') if n.strip()}
-    if selected - names:
-        parser.error('Unknown extensions: '+', '.join(sorted(selected-names)))
-    mappings = json.loads((ROOT/'data/scorecard-repositories.json').read_text())
-    configured = json.loads((ROOT/'data/scorecard-local-scans.json').read_text())['extensions']
     try:
-        targets = scan_targets(names, configured, selected)
+        projects = discover_projects(args.catalog_dir, args.recipe_cache, selected)
     except ValueError as exc:
         parser.error(str(exc))
+    targets = sorted(projects)
+    mappings = {name: mapping for name, (mapping, _) in projects.items() if mapping}
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
     if any(output.iterdir()):
         parser.error('Output directory must be empty to prevent stale reports')
-    repositories = sorted({mappings[n]['repository'] for n in targets if n in mappings})
+    repositories = sorted({mappings[n]['repository'] for n in targets if not scan_skip_reason(mappings.get(n))})
     def run(repository):
         result = scan(repository, args.binary, output, args.timeout)
         print(repository + ': ' + result['status'], flush=True)
@@ -103,12 +83,15 @@ def main():
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         results = dict(zip(repositories, pool.map(run, repositories)))
-    entries = {n: {**mappings.get(n, {}), **results.get(mappings.get(n, {}).get('repository'),
-               {'status': 'unavailable', 'reason': 'No reviewed upstream repository mapping'})} for n in targets}
+    entries = {}
+    for name in targets:
+        mapping = mappings.get(name, {})
+        reason = scan_skip_reason(mapping)
+        result = {'status': 'skipped', 'reason': reason} if reason else results[mapping['repository']]
+        entries[name] = {**mapping, **result}
     catalog_commit = subprocess.check_output(['git', '-C', args.catalog_dir, 'rev-parse', 'HEAD'], text=True).strip()
     index = {'schemaVersion': 1, 'generatedAt': datetime.now(timezone.utc).isoformat(),
-             'catalogCommit': catalog_commit, 'scope': 'subset' if selected else 'local-list',
-             'configuredExtensions': configured,
+             'catalogCommit': catalog_commit, 'scope': 'subset' if selected else 'catalog',
              'producer': os.environ.get('GITHUB_REPOSITORY', 'local'),
              'runId': os.environ.get('GITHUB_RUN_ID'), 'extensions': entries}
     (output/'index.json').write_text(json.dumps(index, indent=2)+'\n')
@@ -119,7 +102,7 @@ def main():
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
             f.write(summary)
-    if not available:
+    if repositories and not available:
         raise SystemExit('No reports produced')
 
 if __name__ == '__main__':

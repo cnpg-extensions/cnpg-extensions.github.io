@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       extensions:
-        description: 'Optional comma-separated names from local scan list (empty scans entire list)'
+        description: 'Optional comma-separated catalog extension names (empty scans entire catalog)'
         type: string
         default: ''
 permissions:
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.15'
-      - run: pip install PyYAML==6.0.3
+      - run: pip install -r requirements.txt
       - name: Download pinned Scorecard and verify checksum
         env:
           GH_TOKEN: ${{ github.token }}
@@ -38,7 +38,10 @@ jobs:
           chmod +x scorecard
           echo "$PWD" >> "$GITHUB_PATH"
       - name: Fetch current published catalog
-        run: git clone --depth 1 https://github.com/cnpg-extensions/artifacts.git .cache/scorecard-catalog
+        run: |
+          git clone --depth 1 https://github.com/cnpg-extensions/artifacts.git .cache/scorecard-catalog
+          git clone --depth 1 https://github.com/cnpg-extensions/postgres-extensions-containers.git .cache/source
+          git clone --depth 1 https://github.com/cloudnative-pg/postgres-extensions-containers.git .cache/upstream
       - name: Scan upstream repositories
         env:
           GITHUB_AUTH_TOKEN: ${{ secrets.SCORECARD_TOKEN || github.token }}

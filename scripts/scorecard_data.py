@@ -9,6 +9,8 @@ from urllib.parse import urlsplit
 
 import requests
 
+from scorecard_repositories import discover_projects, scan_skip_reason
+
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCER = 'cnpg-extensions/cnpg-extensions.github.io'
 
@@ -47,7 +49,7 @@ def cached_reports():
 
 def read_artifact(directory, run_id):
     index = json.loads((directory / 'index.json').read_text())
-    if (index.get('schemaVersion') != 1 or index.get('scope') != 'local-list'
+    if (index.get('schemaVersion') != 1 or index.get('scope') not in ('catalog', 'local-list')
             or index.get('producer') != PRODUCER or str(index.get('runId')) != run_id):
         return {}
     reports = {}
@@ -83,7 +85,8 @@ def resolve(repository, fallback, output):
         output.mkdir(parents=True, exist_ok=True)
         (output / filename).write_text(raw)
         return present(report, repository, 'Cached scan', 'reports/scorecards/' + filename)
-    return {'status': 'unavailable', 'repository': repository}
+    return {'status': 'unavailable', 'repository': repository,
+            'reason': 'No usable OpenSSF report or cached scan was available for the upstream repository.'}
 
 
 # OpenSSF v5.6.0, matching the pinned scanner:
@@ -113,13 +116,23 @@ def present(report, repository, source, url):
 
 
 def generate_scorecards():
-    mappings = json.loads((ROOT / 'data/scorecard-repositories.json').read_text())
+    extensions = json.loads((ROOT / 'data/generated.json').read_text())['extensions']
+    if all('sourceRepository' in entry for entry in extensions):
+        mappings = {entry['name']: entry['sourceRepository'] for entry in extensions}
+    else:
+        # Older generated catalogs predate sourceRepository.
+        cache = ROOT / '.cache'
+        projects = discover_projects(cache/'artifacts/image-catalogs-extensions', cache)
+        mappings = {entry['name']: projects.get(entry['name'], (None, {}))[0] for entry in extensions}
     fallback = cached_reports()
-    repositories = sorted({entry['repository'] for entry in mappings.values()})
+    repositories = sorted({entry['repository'] for entry in mappings.values() if not scan_skip_reason(entry)})
     with ThreadPoolExecutor(max_workers=4) as pool:
         results = dict(zip(repositories, pool.map(
             lambda repository: resolve(repository, fallback, ROOT / 'static/reports/scorecards'), repositories)))
-    data = {name: results[entry['repository']] for name, entry in mappings.items()}
+    data = {}
+    for name, mapping in mappings.items():
+        reason = scan_skip_reason(mapping)
+        data[name] = {'status': 'unavailable', 'reason': reason} if reason else results[mapping['repository']]
     (ROOT / 'data/scorecards.json').write_text(json.dumps(data))
     print(f'Scorecards available: {sum(r["status"] == "available" for r in data.values())}/{len(data)}')
 

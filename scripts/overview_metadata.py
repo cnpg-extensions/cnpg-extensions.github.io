@@ -4,19 +4,14 @@
 Does not refresh source checkouts, image versions, scan results, or timestamps.
 """
 from collections import Counter
-import gzip
 import json
 from pathlib import Path
-import re
-from urllib.parse import parse_qs, unquote, quote, urlsplit
-import requests
+from urllib.parse import parse_qs, unquote, quote
+from scorecard_repositories import discover_projects, publisher_for
 import hcl2
 from hcl2.utils import SerializationOptions
 
 ROOT = Path(__file__).resolve().parents[1]
-
-def valid_url(value):
-    return value if isinstance(value, str) and urlsplit(value).scheme in ('http', 'https') and urlsplit(value).netloc else ''
 
 def deb_identity(package):
     for ref in package.get('externalRefs', []):
@@ -54,29 +49,14 @@ def setup_metadata(metadata, variant):
         'createExtension': metadata.get('create_extension'),
     }
 
-def package_index(distro):
-    url = f'https://apt.postgresql.org/pub/repos/apt/dists/{distro}-pgdg/main/binary-amd64/Packages.gz'
-    cache = ROOT / '.cache' / f'overview-{distro}-Packages.gz'
-    if not cache.exists():
-        response = requests.get(url, timeout=60)
-        response.raise_for_status()
-        cache.write_bytes(response.content)
-    records = {}
-    for paragraph in gzip.decompress(cache.read_bytes()).decode().split('\n\n'):
-        fields = {}
-        for line in paragraph.splitlines():
-            if line and not line.startswith((' ', '\t')) and ': ' in line:
-                key, value = line.split(': ', 1)
-                fields[key] = value
-        if fields.get('Package'):
-            records[fields['Package']] = fields
-    return records, url
-
 def main():
     path = ROOT / 'data/generated.json'
     data = json.loads(path.read_text())
-    indexes = {d: package_index(d) for d in sorted({v['distro'] for e in data['extensions'] for v in e['variants']})}
+    cache = ROOT / '.cache'
+    projects = discover_projects(cache/'artifacts/image-catalogs-extensions', cache)
     for entry in data['extensions']:
+        repository, by_variant = projects[entry['name']]
+        entry['sourceRepository'] = repository
         cache_source = 'upstream' if entry['publisher'] == 'cloudnative-pg' else 'source'
         recipe_path = entry['source'].split('/blob/main/', 1)[-1]
         recipe = ROOT / '.cache' / cache_source / Path(recipe_path).with_name('metadata.hcl')
@@ -84,21 +64,8 @@ def main():
         metadata = hcl2.loads(recipe_text, serialization_options=SerializationOptions(strip_string_quotes=True, with_comments=False)).get('metadata', {}) if recipe_text else {}
         entry['title'] = entry['name']
         entry['sqlName'] = metadata.get('sql_name', '')
-        upstream_repos = sorted(set(re.findall(r'datasource=(github|gitlab)-(?:tags|releases)\s+depName=([\w.-]+(?:/[\w.-]+)+)', recipe_text)))
-        deb_names = list(dict.fromkeys(re.findall(r'suite=[\w-]+\s+depName=([\w.+-]+)', recipe_text)))
         for variant in entry['variants']:
-            index, index_url = indexes[variant['distro']]
-            links = [{'label': 'Upstream repository', 'url': f'https://{host}.com/{repo}', 'evidence': 'Recipe Renovate metadata'} for host, repo in upstream_repos]
-            for name in deb_names:
-                record = index.get(name)
-                if not record:
-                    continue
-                source = record.get('Source', name).split(' ')[0]
-                links.append({'label': 'Debian source package', 'url': 'https://tracker.debian.org/pkg/' + quote(source, safe=''), 'evidence': f'PGDG package metadata: {name}'})
-                homepage = valid_url(record.get('Homepage'))
-                if homepage:
-                    links.append({'label': 'Upstream homepage', 'url': homepage, 'evidence': f'Homepage field in PGDG package metadata: {name}'})
-            variant['projectLinks'] = list({(x['label'], x['url']): x for x in links}.values())
+            variant['projectLinks'] = by_variant[publisher_for(variant['reference']), variant['distro']]
             for platform in variant['platforms']:
                 platform['setup'] = setup_metadata(metadata, variant)
                 if platform.get('sbom') and entry['publisher'] != 'cloudnative-pg':
