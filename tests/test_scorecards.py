@@ -57,6 +57,16 @@ class ScorecardTests(unittest.TestCase):
             self.assertEqual(result['status'], 'unavailable')
             self.assertIn('not json', result['diagnostic'])
 
+    def test_scan_only_when_public_report_is_unavailable(self):
+        args = ('https://github.com/example/project', 'scorecard', Path('.'), 10)
+        report = {'url': 'https://example.org/report', 'date': '2026-11-23'}
+        with patch.object(m, 'public_report', side_effect=[report, None]) as lookup, patch.object(m, 'scan') as scan:
+            self.assertEqual(m.scan_if_needed(*args)['status'], 'public')
+            scan.assert_not_called()
+            self.assertEqual(m.scan_if_needed(*args), scan.return_value)
+            scan.assert_called_once_with(*args)
+            self.assertEqual(lookup.call_count, 2)
+
     def test_partial_report_survives_nonzero_exit(self):
         report = {'date': '2026-11-18', 'repo': {'commit': 'abc'},
                   'checks': [{'name': 'Branch-Protection', 'score': -1},

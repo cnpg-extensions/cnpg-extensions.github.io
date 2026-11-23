@@ -68,7 +68,7 @@ def read_artifact(directory, run_id):
     return reports
 
 
-def resolve(repository, fallback, output):
+def public_report(repository):
     api_url = 'https://api.securityscorecards.dev/projects/' + repository.removeprefix('https://')
     if urlsplit(repository).netloc in ('github.com', 'gitlab.com'):
         try:
@@ -79,6 +79,13 @@ def resolve(repository, fallback, output):
                 return present(report, repository, 'OpenSSF API', api_url)
         except (requests.RequestException, ValueError, TypeError, AttributeError):
             pass
+    return None
+
+
+def resolve(repository, fallback, output):
+    report = public_report(repository)
+    if report:
+        return report
     if repository in fallback:
         report, raw = fallback[repository]
         filename = hashlib.sha256(repository.encode()).hexdigest() + '.json'

@@ -259,8 +259,10 @@ Locally, use `--rebuild-cache` or `--refresh-extension NAME`. Advisory scans sti
 ## Weekly upstream Scorecard reports
 
 `scorecards.yml` runs every Monday at 08:17 UTC and supports manual dispatch.
-Both triggers run fresh scans with the pinned Scorecard version, using the current published
-catalog to select extensions. The scan and the website prefer the Debian release watch
+Both triggers use the published catalog to select extensions. Before launching the
+pinned scanner, the workflow requests the public OpenSSF report once per distinct
+eligible repository. A valid report skips the local scan, regardless of report age.
+If the lookup fails or returns no usable report, the workflow runs the local scan. The scan and the website prefer the Debian release watch
 (`debian/watch`) and recognize repository URLs in Renovate rules, including
 `git-tags`. Debian upstream declarations and repository homepages are used only
 in the absence of a watch. A tarball-only watch does not identify a repository.

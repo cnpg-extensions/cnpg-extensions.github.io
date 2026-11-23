@@ -10,6 +10,7 @@ from pathlib import Path
 import subprocess
 from urllib.parse import urlsplit
 
+from scorecard_data import public_report
 from scorecard_repositories import discover_projects, scan_skip_reason
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +53,14 @@ def scan(repository, binary, output, timeout):
         return {'status': 'unavailable', 'reason': type(exc).__name__}
 
 
+def scan_if_needed(repository, binary, output, timeout):
+    report = public_report(repository)
+    if report:
+        return {'status': 'public', 'reason': 'OpenSSF already publishes a usable report.',
+                'url': report['url'], 'date': report['date']}
+    return scan(repository, binary, output, timeout)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--catalog-dir', required=True)
@@ -77,7 +86,7 @@ def main():
         parser.error('Output directory must be empty to prevent stale reports')
     repositories = sorted({mappings[n]['repository'] for n in targets if not scan_skip_reason(mappings.get(n))})
     def run(repository):
-        result = scan(repository, args.binary, output, args.timeout)
+        result = scan_if_needed(repository, args.binary, output, args.timeout)
         print(repository + ': ' + result['status'], flush=True)
         return result
 
@@ -95,14 +104,15 @@ def main():
              'producer': os.environ.get('GITHUB_REPOSITORY', 'local'),
              'runId': os.environ.get('GITHUB_RUN_ID'), 'extensions': entries}
     (output/'index.json').write_text(json.dumps(index, indent=2)+'\n')
-    available = sum(r['status'] == 'available' for r in entries.values())
+    available = sum(r['status'] in ('available', 'public') for r in entries.values())
     summary = f'Scorecard reports: {available}/{len(entries)} extensions; scope: {index["scope"]}.\n'
     summary += '\n'.join(f'- {n}: {r["status"]}'+(' — '+r['reason'] if 'reason' in r else '') for n, r in entries.items())+'\n'
     print(summary)
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
             f.write(summary)
-    if repositories and not available:
+    attempted = [r for r in results.values() if r['status'] != 'public']
+    if attempted and not any(r['status'] == 'available' for r in attempted):
         raise SystemExit('No reports produced')
 
 if __name__ == '__main__':
