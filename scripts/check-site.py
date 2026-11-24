@@ -75,7 +75,7 @@ def check_site(root):
     for extension in data['extensions']:
         extension_dir = root / 'extensions' / extension['name']
         assert (extension_dir / 'index.html').exists(), extension['name']
-        for view in ('overview', 'documentation', 'dependencies', 'licenses'):
+        for view in ('overview', 'documentation', 'dependencies', 'licenses', 'versions'):
             tab_page = extension_dir / view / 'index.html'
             assert tab_page.exists(), tab_page
             markup = pages.get(tab_page)

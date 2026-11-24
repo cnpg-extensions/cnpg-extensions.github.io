@@ -19,7 +19,7 @@ class CheckSiteTests(unittest.TestCase):
             'extensions': [{'name': 'sample', 'variants': []}],
         }))
         self.write('public/extensions/sample/index.html', '<main></main>')
-        for view in ('overview', 'documentation', 'dependencies', 'licenses'):
+        for view in ('overview', 'documentation', 'dependencies', 'licenses', 'versions'):
             self.write(
                 f'public/extensions/sample/{view}/index.html',
                 f'<section class="tab detail-view" id="{view}"></section>'
