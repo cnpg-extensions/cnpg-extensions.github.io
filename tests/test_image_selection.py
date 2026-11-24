@@ -90,6 +90,10 @@ class ImageSelectionTemplateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             site = Path(directory)
             build_fixture(site)
+            catalog = BeautifulSoup((site / 'public/extensions/index.html').read_text(), 'html.parser')
+            self.assertEqual([o.get('value') for o in catalog.select('#filter-pg option')], ['', '19', '18'])
+            self.assertEqual(set(catalog.select_one('.extension-card')['data-images'].split()),
+                             {'18/trixie', '18/bookworm', '19/trixie', '19/bookworm'})
             soup = BeautifulSoup((site / 'public/extensions/fixture/overview/index.html').read_text(), 'html.parser')
             options = soup.select('#image-choice option')
             self.assertEqual([o['data-variant'] for o in options], [
