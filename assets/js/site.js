@@ -60,6 +60,30 @@ if (search) {
   const dates = card.dataset.buildDates.trim().split(/\s+/).map(Date.parse).filter(Number.isFinite);
   return [card, dates.length ? Math.max(...dates) : null];
  }));
+ const today = new Date();
+ today.setHours(0, 0, 0, 0);
+ const yesterday = new Date(today);
+ yesterday.setDate(today.getDate() - 1);
+ // Clamp the cutoff to the last day of the target month.
+ const cutoff = new Date(today.getFullYear(), today.getMonth() - 5, 0);
+ cutoff.setDate(Math.min(today.getDate(), cutoff.getDate()));
+ const shortDate = new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric'});
+ const longDate = new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+ function buildDateLabel(date) {
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return (date < cutoff ? longDate : shortDate).format(date);
+ }
+ for (const [card, timestamp] of latestBuilds) {
+  if (timestamp === null) continue;
+  const date = new Date(timestamp);
+  const label = card.querySelector('.card-build-date');
+  label.dateTime = date.toISOString();
+  label.textContent = buildDateLabel(date);
+  label.title = 'Latest image build: ' + date.toLocaleString();
+  label.setAttribute('aria-label', label.title);
+  label.hidden = false;
+ }
  function compareCards(a, b) {
   if (sort.value === 'newest' || sort.value === 'oldest') {
    const first = latestBuilds.get(a);

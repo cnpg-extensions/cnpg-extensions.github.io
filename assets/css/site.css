@@ -156,7 +156,8 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
 .extension-card h2{font-size:20px;line-height:1.25;margin:0;min-width:0}
 .extension-card .badge{flex-shrink:0;font-size:11px;padding:1px 6px}
 .extension-card .card-description{margin:7px 0 10px;font-size:14px;line-height:1.5}
-.extension-card .card-meta{justify-content:flex-start;flex-wrap:wrap;gap:3px 12px;margin-top:0;font-size:12px;line-height:1.5}
+.extension-card .card-meta{justify-content:flex-start;flex-wrap:wrap;gap:3px 12px;margin-top:auto;font-size:12px;line-height:1.5}
+.card-build-date{margin-inline-start:auto;white-space:nowrap}
 .extension-card .card-meta .version{font-size:12px}
 .catalog-toolbar{padding:18px}
 .catalog-summary{margin:18px 0 12px}
