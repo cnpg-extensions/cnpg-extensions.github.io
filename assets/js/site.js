@@ -56,15 +56,32 @@ const search = document.getElementById('extension-search');
 if (search) {
  const grid = document.getElementById('catalog-grid'); const cards = [...grid.children];
  const filters = Object.fromEntries(['pg','distro','build','publisher'].map(name => [name, document.getElementById(`filter-${name}`)])); const sort = document.getElementById('catalog-sort');
+ const latestBuilds = new Map(cards.map(card => {
+  const dates = card.dataset.buildDates.trim().split(/\s+/).map(Date.parse).filter(Number.isFinite);
+  return [card, dates.length ? Math.max(...dates) : null];
+ }));
+ function compareCards(a, b) {
+  if (sort.value === 'newest' || sort.value === 'oldest') {
+   const first = latestBuilds.get(a);
+   const second = latestBuilds.get(b);
+   if (first !== second) {
+    if (first === null) return 1;
+    if (second === null) return -1;
+    return sort.value === 'newest' ? second - first : first - second;
+   }
+  }
+  return a.dataset.name.localeCompare(b.dataset.name) * (sort.value === 'reverse' ? -1 : 1);
+ }
  function restoreCatalog() {
   const params = new URLSearchParams(location.search);
   search.value = params.get('q') || '';
   Object.entries(filters).forEach(([name,f]) => { const value=params.get(name) || ''; f.value=[...f.options].some(o=>o.value===value)?value:''; });
-  sort.value = params.get('sort') === 'reverse' ? 'reverse' : 'name';
+  const requestedSort = params.get('sort');
+  sort.value = [...sort.options].some(option => option.value === requestedSort) ? requestedSort : 'name';
   filter(false);
  }
  function filter(updateURL = true) { const words = search.value.toLowerCase().trim().split(/\s+/).filter(Boolean); let count = 0;
- cards.sort((a,b) => a.dataset.name.localeCompare(b.dataset.name) * (sort.value === 'reverse' ? -1 : 1)).forEach(card => {
+ cards.sort(compareCards).forEach(card => {
  const imageMatches = card.dataset.images.trim().split(/\s+/).some(image => {
   const [pg, distro] = image.split('/');
   return (!filters.pg.value || pg === filters.pg.value) && (!filters.distro.value || distro === filters.distro.value);
@@ -73,7 +90,7 @@ if (search) {
  card.hidden = !matches; if (matches) count++; grid.append(card);
  });
  document.getElementById('result-count').textContent = `${count} ${count === 1 ? 'extension' : 'extensions'}`; document.getElementById('no-results').hidden = count > 0;
- const url = new URL(location.href); [['q',search.value],['sort',sort.value === 'reverse' ? 'reverse' : ''],...Object.entries(filters).map(([name,f]) => [name,f.value])].forEach(([k,v]) => v ? url.searchParams.set(k,v) : url.searchParams.delete(k)); if(updateURL) history.replaceState(null,'',url);
+ const url = new URL(location.href); [['q',search.value],['sort',sort.value === 'name' ? '' : sort.value],...Object.entries(filters).map(([name,f]) => [name,f.value])].forEach(([k,v]) => v ? url.searchParams.set(k,v) : url.searchParams.delete(k)); if(updateURL) history.replaceState(null,'',url);
  }
  search.addEventListener('input',filter); [...Object.values(filters),sort].forEach(el => el.addEventListener('change',filter));
  document.getElementById('clear-filters').addEventListener('click',()=>{search.value='';Object.values(filters).forEach(f=>f.value='');sort.value='name';filter();search.focus();}); restoreCatalog(); window.addEventListener('popstate',restoreCatalog);
